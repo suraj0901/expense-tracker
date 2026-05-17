@@ -11,6 +11,7 @@ import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
 import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase } from './core/db/client';
+import { startScheduler } from './core/scheduler';
 
 type Route = 'chat' | 'dashboard' | 'settings';
 
@@ -32,6 +33,7 @@ export default function App() {
       await initializeDatabase();
       initSettings();
       setDbReady(true);
+      startScheduler();
     } catch (error) {
       console.error('[App] Database initialization failed:', error);
       setDbError(

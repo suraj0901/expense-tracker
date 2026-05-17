@@ -2,10 +2,11 @@
  * ChatView — the primary view. Message list + input box.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useChatStore } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
 import { MessageBubble } from './MessageBubble';
+import { onSuggestion, dismissSuggestion, type Suggestion } from '../../core/scheduler';
 
 const SUGGESTIONS = [
   '☕ "chai 15 at tapri"',
@@ -28,12 +29,17 @@ export function ChatView() {
   } = useChatStore();
 
   const { provider } = useSettingsStore();
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
+
+  useEffect(() => {
+    return onSuggestion((s) => setSuggestion(s));
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,6 +86,13 @@ export function ChatView() {
             </a>{' '}
             to start chatting
           </span>
+        </div>
+      )}
+
+      {suggestion && (
+        <div className="suggestion-banner">
+          <span>💡 {suggestion.text}</span>
+          <button onClick={() => { dismissSuggestion(suggestion.id); setSuggestion(null); }}>✕</button>
         </div>
       )}
 

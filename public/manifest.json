@@ -1,0 +1,18 @@
+{
+  "name": "AI Expense Tracker",
+  "short_name": "ExpenseTracker",
+  "description": "AI-powered personal expense tracker — log in natural language",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0a0a0f",
+  "background_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

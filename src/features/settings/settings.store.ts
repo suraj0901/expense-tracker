@@ -10,7 +10,7 @@ import {
   loadSettings,
   saveSettings,
 } from '../../core/providers/types';
-import { createProvider } from '../../core/providers/cloud';
+import { createProvider } from '../../core/providers/factory';
 
 interface SettingsState {
   settings: ProviderSettings;

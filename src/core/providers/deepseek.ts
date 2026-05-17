@@ -28,7 +28,7 @@ export class DeepSeekProvider implements AIProvider {
     })) : undefined;
     const response = await this.client.chat.completions.create({
       model: 'deepseek-chat', max_tokens: 1024, messages: openaiMessages,
-      tools: openaiTools, tool_choice: 'auto', temperature: 0.1,
+      tools: openaiTools, tool_choice: 'required', temperature: 0.1,
     });
     return this.parseResponse(response);
   }

@@ -1,17 +1,16 @@
 /**
- * DashboardView — header insight + charts.
- *
- * TanStack Query reads from local SQLite.
- * Recharts for the donut chart.
+ * DashboardView — monthly summary, charts, and compare mode.
  */
-
 import { useState, useEffect, useCallback } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from 'recharts';
 import { format, subMonths, addMonths } from 'date-fns';
-import { formatINR } from '../../core/domain/money';
+import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 import * as db from '../../core/db/client';
-import type { MonthlySummary } from '../../core/domain/types';
+import type { MonthlySummary, CategoryBreakdownItem } from '../../core/domain/types';
 
 const CHART_COLORS = [
   '#818cf8', '#f472b6', '#34d399', '#fbbf24',
@@ -19,10 +18,18 @@ const CHART_COLORS = [
   '#e879f9', '#f97316', '#22d3ee', '#84cc16',
 ];
 
+interface CompareDatum {
+  category: string;
+  icon: string;
+  [monthLabel: string]: number | string;
+}
+
 export function DashboardView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareData, setCompareData] = useState<CompareDatum[] | null>(null);
 
   const month = currentDate.getMonth() + 1;
   const year = currentDate.getFullYear();
@@ -42,9 +49,37 @@ export function DashboardView() {
     loadSummary();
   }, [loadSummary]);
 
+  const loadCompareData = useCallback(async () => {
+    const months: { label: string; month: number; year: number }[] = [];
+    for (let i = 2; i >= 0; i--) {
+      const d = subMonths(currentDate, i);
+      months.push({
+        label: format(d, 'MMM'),
+        month: d.getMonth() + 1,
+        year: d.getFullYear(),
+      });
+    }
+    const summaries = await Promise.all(
+      months.map((m) => db.getMonthlySummary(m.month, m.year))
+    );
+    const catMap = new Map<string, CompareDatum>();
+    summaries.forEach((s, i) => {
+      const label = months[i].label;
+      s.categoryBreakdown.forEach((c: CategoryBreakdownItem) => {
+        const entry = catMap.get(c.category) || { category: c.category, icon: c.icon };
+        entry[label] = paiseToRupees(c.total);
+        catMap.set(c.category, entry);
+      });
+    });
+    setCompareData(Array.from(catMap.values()));
+  }, [currentDate]);
+
+  useEffect(() => {
+    if (compareMode) loadCompareData();
+  }, [compareMode, loadCompareData]);
+
   const goToPrevMonth = () => setCurrentDate((d) => subMonths(d, 1));
   const goToNextMonth = () => setCurrentDate((d) => addMonths(d, 1));
-
   const monthLabel = format(currentDate, 'MMM yyyy');
 
   if (isLoading) {
@@ -81,31 +116,23 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="summary-cards">
         <div className="summary-card income">
           <div className="label">Income</div>
-          <div className="amount">
-            {summary ? formatINR(summary.totalIncome) : '₹0'}
-          </div>
+          <div className="amount">{summary ? formatINR(summary.totalIncome) : '₹0'}</div>
         </div>
         <div className="summary-card expense">
           <div className="label">Spent</div>
-          <div className="amount">
-            {summary ? formatINR(summary.totalExpense) : '₹0'}
-          </div>
+          <div className="amount">{summary ? formatINR(summary.totalExpense) : '₹0'}</div>
         </div>
         <div className="summary-card savings">
           <div className="label">Saved</div>
-          <div className="amount">
-            {summary ? formatINR(summary.savings) : '₹0'}
-          </div>
+          <div className="amount">{summary ? formatINR(summary.savings) : '₹0'}</div>
         </div>
       </div>
 
       {hasData ? (
         <>
-          {/* Savings Rate */}
           {summary.totalIncome > 0 && (
             <div className="insight-card">
               <h3>✨ Monthly Insight</h3>
@@ -119,45 +146,75 @@ export function DashboardView() {
             </div>
           )}
 
-          {/* Category Donut Chart */}
-          {summary.categoryBreakdown.length > 0 && (
+          <div className="compare-toggle-row">
+            <h3>{compareMode ? '3-Month Comparison' : 'Spending by Category'}</h3>
+            <button
+              className={`compare-toggle ${compareMode ? 'active' : ''}`}
+              onClick={() => setCompareMode(!compareMode)}
+            >
+              {compareMode ? 'Single' : 'Compare'}
+            </button>
+          </div>
+
+          {compareMode && compareData ? (
             <div className="chart-card">
-              <h3>Spending by Category</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={summary.categoryBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="total"
-                    nameKey="category"
-                    stroke="none"
-                  >
-                    {summary.categoryBreakdown.map((_entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={CHART_COLORS[index % CHART_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={compareData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a42" />
+                  <XAxis
+                    dataKey="category" tick={{ fontSize: 11, fill: '#9595b0' }}
+                    axisLine={{ stroke: '#2a2a42' }} tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#9595b0' }}
+                    axisLine={{ stroke: '#2a2a42' }} tickLine={false}
+                    tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+                  />
                   <Tooltip
                     contentStyle={{
-                      background: '#1a1a2e',
-                      border: '1px solid #2a2a42',
-                      borderRadius: '8px',
-                      fontSize: '0.8rem',
+                      background: '#1a1a2e', border: '1px solid #2a2a42',
+                      borderRadius: '8px', fontSize: '0.8rem',
                     }}
-                    formatter={(value: number) => [formatINR(value as unknown as Paise), 'Amount']}
+                    formatter={(value: number) => [formatINR((value * 100) as unknown as Paise), 'Amount']}
                   />
-                </PieChart>
+                  {(() => {
+                    const months = compareData.length > 0
+                      ? Object.keys(compareData[0]).filter((k) => k !== 'category' && k !== 'icon')
+                      : [];
+                    return months.map((m, i) => (
+                      <Bar key={m} dataKey={m} fill={CHART_COLORS[i]} radius={[4, 4, 0, 0]} />
+                    ));
+                  })()}
+                </BarChart>
               </ResponsiveContainer>
             </div>
+          ) : (
+            summary.categoryBreakdown.length > 0 && (
+              <div className="chart-card">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={summary.categoryBreakdown}
+                      cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                      paddingAngle={3} dataKey="total" nameKey="category" stroke="none"
+                    >
+                      {summary.categoryBreakdown.map((_entry, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: '#1a1a2e', border: '1px solid #2a2a42',
+                        borderRadius: '8px', fontSize: '0.8rem',
+                      }}
+                      formatter={(value: number) => [formatINR(value as unknown as Paise), 'Amount']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )
           )}
 
-          {/* Category Breakdown List */}
           <div className="chart-card">
             <h3>Category Breakdown</h3>
             <div className="category-list">

@@ -11,6 +11,9 @@ import type { Paise } from './domain/money';
 export interface Suggestion {
   id: string;
   text: string;
+  category?: string;
+  typicalAmount?: number; // rupees
+  merchant?: string;
   createdAt: number;
 }
 
@@ -57,7 +60,10 @@ async function tick(): Promise<void> {
         const mid = data.merchant ? ` at ${data.merchant}` : '';
         emit({
           id: `pattern-${category}-${avg}`,
-          text: `I notice you often spend ~₹${avg} on ${category}${mid}. Want me to log one now?`,
+          text: `~₹${avg} ${category}${mid}`,
+          category,
+          typicalAmount: avg,
+          merchant: data.merchant ?? undefined,
           createdAt: Date.now(),
         });
       }

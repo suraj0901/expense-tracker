@@ -21,6 +21,7 @@ export interface ProviderMessage {
 export interface ProviderToolResultMessage {
   role: 'tool';
   toolCallId: string;
+  name: string;
   content: string;
 }
 

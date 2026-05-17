@@ -46,7 +46,7 @@ export class GeminiProvider implements AIProvider {
       })) });
     }
     contents.push({ role: 'user', parts: toolResults.map((tr) => ({
-      functionResponse: { name: tr.toolCallId, response: JSON.parse(tr.content) },
+      functionResponse: { name: tr.name, response: JSON.parse(tr.content) },
     })) });
     const model = this.getModel(sysMsg?.content, tools);
     const resp = await model.generateContent({ contents });

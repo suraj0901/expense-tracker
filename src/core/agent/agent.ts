@@ -84,9 +84,10 @@ export async function processMessage(
     }
 
     // Send tool results back to AI
-    const toolResultMessages: ProviderToolResultMessage[] = toolResults.map((tr) => ({
+    const toolResultMessages: ProviderToolResultMessage[] = toolResults.map((tr, i) => ({
       role: 'tool' as const,
       toolCallId: tr.toolCallId,
+      name: response.toolCalls[i].name,
       content: JSON.stringify(tr.error ? { error: tr.error } : tr.result),
     }));
 

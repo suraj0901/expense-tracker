@@ -27,7 +27,8 @@ export class DeepSeekProvider implements AIProvider {
       function: { name: t.name, description: t.description, parameters: t.parameters },
     })) : undefined;
     const response = await this.client.chat.completions.create({
-      model: 'deepseek-chat', max_tokens: 1024, messages: openaiMessages, tools: openaiTools,
+      model: 'deepseek-chat', max_tokens: 1024, messages: openaiMessages,
+      tools: openaiTools, tool_choice: 'auto', temperature: 0.1,
     });
     return this.parseResponse(response);
   }
@@ -52,7 +53,8 @@ export class DeepSeekProvider implements AIProvider {
       function: { name: t.name, description: t.description, parameters: t.parameters },
     })) : undefined;
     const response = await this.client.chat.completions.create({
-      model: 'deepseek-chat', max_tokens: 1024, messages: openaiMessages, tools: openaiTools,
+      model: 'deepseek-chat', max_tokens: 4096, messages: openaiMessages,
+      tools: openaiTools, tool_choice: 'auto', temperature: 0.1,
     });
     return this.parseResponse(response);
   }

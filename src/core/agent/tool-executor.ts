@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { rupeesToPaise, paiseToRupees } from '../domain/money';
 import type { Paise } from '../domain/money';
 import type { ToolCall, ToolResult } from '../domain/types';
-import { TOOL_SCHEMAS } from './tools';
+import { TOOL_SCHEMAS } from './tool-schemas';
 import * as db from '../db/client';
 
 /**

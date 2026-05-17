@@ -6,8 +6,9 @@ import {
   StoreExpenseSchema, StoreIncomeSchema, GetExpensesSchema,
   GetMonthlySummarySchema, GetCategoryBreakdownSchema,
   UpdateExpenseSchema, DeleteExpenseSchema, UndoDeleteSchema,
-  GetBudgetStatusSchema, TOOL_DEFINITIONS, TOOL_SCHEMAS,
-} from './tools';
+  GetBudgetStatusSchema,
+} from './tool-schemas';
+import { TOOL_DEFINITIONS, TOOL_SCHEMAS } from './tools';
 
 describe('StoreExpenseSchema', () => {
   it('accepts valid input', () => {

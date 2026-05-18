@@ -5,9 +5,11 @@
 import { useState } from 'react';
 import { useSettingsStore } from './settings.store';
 import type { ProviderType } from '../../core/providers/types';
+import { LocalAIProvider } from '../../core/providers/local';
+import { ModelDownloadCard } from './ModelDownloadCard';
 
 export function SettingsView() {
-  const { settings, setActiveProvider, setApiKey, clearApiKey } =
+  const { settings, provider, setActiveProvider, setApiKey, clearApiKey, setWebLLMEnabled } =
     useSettingsStore();
 
   const [anthropicKeyInput, setAnthropicKeyInput] = useState('');
@@ -96,7 +98,35 @@ export function SettingsView() {
             {settings.deepseekApiKey ? '✓ Ready' : 'No key'}
           </span>
         </div>
+
+        <div
+          className={`provider-card local ${settings.activeProvider === 'webllm' ? 'selected' : ''}`}
+          onClick={() => settings.webllmEnabled && setActiveProvider('webllm')}
+        >
+          <div className="radio" />
+          <div className="provider-info">
+            <div className="provider-name">Qwen 3.5 2B (Local)</div>
+            <div className="provider-desc">
+              Runs entirely on device · No API key · No network
+            </div>
+          </div>
+          <label className="toggle-switch" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={settings.webllmEnabled}
+              onChange={(e) => setWebLLMEnabled(e.target.checked)}
+            />
+            <span className="toggle-slider" />
+          </label>
+        </div>
       </div>
+
+      {settings.activeProvider === 'webllm' && settings.webllmEnabled && provider && (
+        <div className="settings-section">
+          <h2>Model Status</h2>
+          <ModelDownloadCard provider={provider as LocalAIProvider} />
+        </div>
+      )}
 
       <div className="settings-section">
         <h2>API Keys</h2>

@@ -100,20 +100,29 @@ self.addEventListener('push', ((event: PushEvent) => {
   );
 }) as EventListener);
 
-// ─── Notification click — focus or open chat ─────────────────────────
+// ─── Notification click — handle Log it / Dismiss actions ───────────
 
 self.addEventListener('notificationclick', ((event: NotificationEvent) => {
   event.notification.close();
+  const data = event.notification.data;
+  const action = event.action;
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clientList) => {
+      // Forward the action to any open client
       for (const client of clientList) {
-        if (client.focus) {
-          return client.focus();
-        }
+        client.postMessage({
+          type: 'NOTIFICATION_ACTION',
+          action: action || 'open',
+          suggestion: data,
+        });
       }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow('/');
+
+      // Focus or open a window
+      for (const client of clientList) {
+        if (client.focus) return client.focus();
       }
+      if (self.clients.openWindow) return self.clients.openWindow('/');
     }),
   );
 }) as EventListener);

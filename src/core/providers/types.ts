@@ -59,13 +59,14 @@ export interface AIProvider {
 
 // ─── Provider Settings ──────────────────────────────────────────────────
 
-export type ProviderType = 'anthropic' | 'gemini' | 'deepseek';
+export type ProviderType = 'anthropic' | 'gemini' | 'deepseek' | 'webllm';
 
 export interface ProviderSettings {
   activeProvider: ProviderType;
   anthropicApiKey: string | null;
   geminiApiKey: string | null;
   deepseekApiKey: string | null;
+  webllmEnabled: boolean;
 }
 
 const SETTINGS_KEY = 'expense-tracker-settings';
@@ -84,6 +85,7 @@ export function loadSettings(): ProviderSettings {
     anthropicApiKey: null,
     geminiApiKey: null,
     deepseekApiKey: null,
+    webllmEnabled: false,
   };
 }
 

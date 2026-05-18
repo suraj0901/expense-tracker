@@ -11,7 +11,11 @@ import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
 import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase } from './core/db/client';
-import { startScheduler, tick } from './core/scheduler';
+import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
+import { insertTransaction } from './core/db/client';
+import { rupeesToPaise } from './core/domain/money';
+import { nanoid } from 'nanoid';
+import { format } from 'date-fns';
 
 type Route = 'chat' | 'dashboard' | 'settings';
 
@@ -84,15 +88,73 @@ export default function App() {
     registerSync();
   }, []);
 
-  // Listen for SW messages (e.g., scheduler checks from periodic sync)
+  // Listen for SW messages (scheduler checks + notification actions)
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       if (event.data?.type === 'SCHEDULER_CHECK') {
         tick();
+        return;
+      }
+      if (event.data?.type === 'NOTIFICATION_ACTION') {
+        const { action, suggestion } = event.data;
+        if (action === 'dismiss' && suggestion?.id) {
+          dismissSuggestion(suggestion.id);
+        }
+        if (action === 'log' && suggestion) {
+          const today = format(new Date(), 'yyyy-MM-dd');
+          insertTransaction({
+            id: nanoid(),
+            amount: rupeesToPaise(suggestion.typicalAmount ?? 0),
+            type: 'expense',
+            category: suggestion.category ?? 'Other',
+            merchant: suggestion.merchant ?? null,
+            note: null,
+            date: today,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isDeleted: false,
+          });
+        }
       }
     };
     navigator.serviceWorker.addEventListener('message', handler);
     return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, []);
+
+  // Show notification when scheduler finds a suggestion
+  useEffect(() => {
+    async function showNotification(s: {
+      id: string;
+      text: string;
+      category?: string;
+      typicalAmount?: number;
+      merchant?: string;
+    }) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('Expense Tracker', {
+        body: `Looks like your usual: ${s.text} — want me to log it?`,
+        icon: '/favicon.svg',
+        tag: s.id,
+        data: s,
+        actions: [
+          { action: 'log', title: 'Log it' },
+          { action: 'dismiss', title: 'Dismiss' },
+        ],
+      });
+    }
+
+    const unsub = onSuggestion((s) => {
+      if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') {
+        Notification.requestPermission().then((p) => {
+          if (p !== 'granted') return;
+          showNotification(s);
+        });
+        return;
+      }
+      showNotification(s);
+    });
+    return unsub;
   }, []);
 
   // Hash-based routing

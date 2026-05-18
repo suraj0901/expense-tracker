@@ -52,6 +52,25 @@
   background: rgba(251, 191, 36, 0.15); color: var(--color-warning);
 }
 
+/* Toggle switch for local provider */
+.toggle-switch {
+  position: relative; display: inline-block; width: 44px; height: 24px;
+  flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; border-radius: 24px;
+  background: var(--color-bg-tertiary); border: 1px solid var(--color-border);
+  transition: all 0.2s ease; cursor: pointer;
+}
+.toggle-slider::after {
+  content: ''; position: absolute; width: 18px; height: 18px;
+  left: 2px; top: 2px; border-radius: 50%; background: var(--color-text-muted);
+  transition: all 0.2s ease;
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--color-accent); border-color: var(--color-accent); }
+.toggle-switch input:checked + .toggle-slider::after { transform: translateX(20px); background: white; }
+
 .api-key-input { display: flex; flex-direction: column; gap: 8px; }
 
 .api-key-input label { font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 500; }
@@ -90,3 +109,38 @@
 }
 
 .btn-danger:hover { background: rgba(248, 113, 113, 0.1); }
+
+/* ─── Model Download Card ────────────────────────────────────────────── */
+
+.model-download-card {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 14px 16px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+
+.model-download-header { display: flex; align-items: center; gap: 12px; }
+
+.model-download-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary); display: flex;
+  align-items: center; justify-content: center; font-size: 1rem;
+}
+
+.model-download-title { font-size: 0.85rem; font-weight: 600; }
+.model-download-desc { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 2px; }
+
+.model-download-progress { display: flex; align-items: center; gap: 10px; }
+
+.progress-bar {
+  flex: 1; height: 6px; border-radius: 3px;
+  background: var(--color-bg-tertiary); overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%; background: var(--color-accent);
+  border-radius: 3px; transition: width 0.3s ease;
+}
+
+.progress-text { font-size: 0.72rem; font-weight: 600; color: var(--color-accent); min-width: 36px; }
+
+.model-download-btn { width: 100%; }

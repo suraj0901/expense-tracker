@@ -21,6 +21,7 @@ interface SettingsState {
   setActiveProvider: (type: ProviderType) => void;
   setApiKey: (type: ProviderType, key: string) => void;
   clearApiKey: (type: ProviderType) => void;
+  setWebLLMEnabled: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -29,22 +30,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     anthropicApiKey: null,
     geminiApiKey: null,
     deepseekApiKey: null,
+    webllmEnabled: false,
   },
   provider: null,
 
   initialize: () => {
     const settings = loadSettings();
-    const keyMap: Record<ProviderType, string | null> = {
-      anthropic: settings.anthropicApiKey,
-      gemini: settings.geminiApiKey,
-      deepseek: settings.deepseekApiKey,
-    };
-    const apiKey = keyMap[settings.activeProvider];
-
-    const provider = apiKey
-      ? createProvider(settings.activeProvider, apiKey)
-      : null;
-
+    const provider = createActiveProvider(settings);
     set({ settings, provider });
   },
 
@@ -52,21 +44,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const { settings } = get();
     const newSettings = { ...settings, activeProvider: type };
     saveSettings(newSettings);
-
-    const keyMap: Record<ProviderType, string | null> = {
-      anthropic: newSettings.anthropicApiKey,
-      gemini: newSettings.geminiApiKey,
-      deepseek: newSettings.deepseekApiKey,
-    };
-    const apiKey = keyMap[type];
-    const provider = apiKey ? createProvider(type, apiKey) : null;
-
+    const provider = createActiveProvider(newSettings);
     set({ settings: newSettings, provider });
   },
 
   setApiKey: (type, key) => {
     const { settings } = get();
-    const keyFields: Record<ProviderType, string> = {
+    const keyFields: Record<string, string> = {
       anthropic: 'anthropicApiKey',
       gemini: 'geminiApiKey',
       deepseek: 'deepseekApiKey',
@@ -78,7 +62,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     saveSettings(newSettings);
 
     if (type === settings.activeProvider) {
-      const provider = createProvider(type, key);
+      const provider = createActiveProvider(newSettings);
       set({ settings: newSettings, provider });
     } else {
       set({ settings: newSettings });
@@ -87,7 +71,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   clearApiKey: (type) => {
     const { settings } = get();
-    const keyFields: Record<ProviderType, string> = {
+    const keyFields: Record<string, string> = {
       anthropic: 'anthropicApiKey',
       gemini: 'geminiApiKey',
       deepseek: 'deepseekApiKey',
@@ -104,4 +88,30 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ settings: newSettings });
     }
   },
+
+  setWebLLMEnabled: (enabled) => {
+    const { settings } = get();
+    const newSettings = { ...settings, webllmEnabled: enabled };
+    saveSettings(newSettings);
+
+    if (settings.activeProvider === 'webllm') {
+      const provider = enabled ? createProvider('webllm', null) : null;
+      set({ settings: newSettings, provider });
+    } else {
+      set({ settings: newSettings });
+    }
+  },
 }));
+
+function createActiveProvider(settings: ProviderSettings): AIProvider | null {
+  if (settings.activeProvider === 'webllm') {
+    return settings.webllmEnabled ? createProvider('webllm', null) : null;
+  }
+  const keyMap: Record<string, string | null> = {
+    anthropic: settings.anthropicApiKey,
+    gemini: settings.geminiApiKey,
+    deepseek: settings.deepseekApiKey,
+  };
+  const apiKey = keyMap[settings.activeProvider];
+  return apiKey ? createProvider(settings.activeProvider, apiKey) : null;
+}

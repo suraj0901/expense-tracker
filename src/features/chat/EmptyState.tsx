@@ -13,8 +13,6 @@ interface EmptyStateProps {
 const EXAMPLES = [
   { role: 'user' as const, content: 'spent 120 on lunch at haldirams' },
   { role: 'assistant' as const, content: 'Got it! Logged Food ₹120 at Haldiram\'s.' },
-  { role: 'user' as const, content: 'how much on food this month?' },
-  { role: 'assistant' as const, content: 'You\'ve spent ₹3,450 on Food in May — about 28% of your total expenses. Your top Food merchants are Haldiram\'s and Zomato.' },
 ];
 
 const QUICK_ACTIONS = [

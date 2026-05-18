@@ -123,9 +123,11 @@ export function ChatView() {
 
         {isSending && (
           <div className="message assistant">
-            <div className="message-bubble">
-              <div className="typing-indicator">
-                <div className="dot" /><div className="dot" /><div className="dot" />
+            <div className="message-body">
+              <div className="message-bubble">
+                <div className="typing-indicator">
+                  <div className="dot" /><div className="dot" /><div className="dot" />
+                </div>
               </div>
             </div>
           </div>

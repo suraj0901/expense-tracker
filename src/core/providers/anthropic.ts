@@ -2,7 +2,7 @@
  * Anthropic Claude provider — direct browser → API calls.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import type { AIProvider, ProviderMessage, ProviderResponse, ProviderToolResultMessage } from './types';
+import type { AIProvider, ProviderMessage, ProviderResponse } from './types';
 import type { ToolDefinition } from '../agent/tools';
 import type { ToolCall } from '../domain/types';
 
@@ -21,38 +21,33 @@ export class AnthropicProvider implements AIProvider {
 
   async chat(messages: ProviderMessage[], tools: ToolDefinition[]): Promise<ProviderResponse> {
     if (!this.client) throw new Error('Anthropic API key not configured');
-    const systemMsg = messages.find((m) => m.role === 'system');
-    const conv = messages.filter((m) => m.role !== 'system').map((m) => ({
-      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
-      content: m.content,
-    }));
-    const response = await this.client.messages.create({
-      model: 'claude-sonnet-4-20250514', max_tokens: 1024,
-      system: systemMsg?.content ?? '', messages: conv,
-      tools: tools.map((t) => ({
-        name: t.name, description: t.description,
-        input_schema: t.parameters as Anthropic.Messages.Tool.InputSchema,
-      })),
-    });
-    return this.parseResponse(response);
-  }
 
-  async chatWithToolResults(
-    messages: ProviderMessage[], toolResults: ProviderToolResultMessage[],
-    tools: ToolDefinition[], assistantRaw: unknown,
-  ): Promise<ProviderResponse> {
-    if (!this.client) throw new Error('Anthropic API key not configured');
     const systemMsg = messages.find((m) => m.role === 'system');
-    const conv: Anthropic.Messages.MessageParam[] = messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content }));
-    const raw = assistantRaw as Anthropic.Messages.Message;
-    conv.push({ role: 'assistant', content: raw.content });
-    conv.push({ role: 'user', content: toolResults.map((tr) => ({
-      type: 'tool_result' as const, tool_use_id: tr.toolCallId, content: tr.content,
-    }))});
+    const conv: Anthropic.Messages.MessageParam[] = [];
+
+    for (const m of messages.filter((m) => m.role !== 'system')) {
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        const content: Anthropic.Messages.ContentBlockParam[] = [];
+        if (m.content) content.push({ type: 'text', text: m.content });
+        for (const tc of m.toolCalls) {
+          content.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.args as Record<string, unknown> });
+        }
+        conv.push({ role: 'assistant', content });
+      } else if (m.role === 'tool' && m.toolCallId) {
+        conv.push({
+          role: 'user' as const,
+          content: [{ type: 'tool_result' as const, tool_use_id: m.toolCallId, content: m.content }],
+        });
+      } else {
+        conv.push({
+          role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+          content: m.content,
+        });
+      }
+    }
+
     const response = await this.client.messages.create({
-      model: 'claude-sonnet-4-20250514', max_tokens: 1024,
+      model: 'claude-sonnet-4-20250514', max_tokens: 4096, temperature: 0.1,
       system: systemMsg?.content ?? '', messages: conv,
       tools: tools.map((t) => ({
         name: t.name, description: t.description,

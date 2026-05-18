@@ -16,13 +16,11 @@ export interface ProviderMessage {
   role: ProviderMessageRole;
   content: string;
   toolCallId?: string; // for tool result messages
-}
-
-export interface ProviderToolResultMessage {
-  role: 'tool';
-  toolCallId: string;
-  name: string;
-  content: string;
+  toolCalls?: Array<{   // for assistant messages with tool calls
+    id: string;
+    name: string;
+    args: Record<string, unknown>;
+  }>;
 }
 
 // ─── Provider Response ──────────────────────────────────────────────────
@@ -47,25 +45,12 @@ export interface AIProvider {
   readonly id: string;
 
   /**
-   * Send a chat completion request.
-   * @param messages - Conversation history
-   * @param tools - Available tool definitions
-   * @returns Provider response with optional tool calls
+   * Send a chat completion request with conversation history and tools.
+   * Handles all message types: system, user, assistant (with optional tool_calls), and tool results.
    */
   chat(
     messages: ProviderMessage[],
     tools: ToolDefinition[]
-  ): Promise<ProviderResponse>;
-
-  /**
-   * Continue a conversation after tool execution.
-   * Sends tool results back to the AI for the next response.
-   */
-  chatWithToolResults(
-    messages: ProviderMessage[],
-    toolResults: ProviderToolResultMessage[],
-    tools: ToolDefinition[],
-    assistantRaw: unknown
   ): Promise<ProviderResponse>;
 
   /** Check if the provider is configured (has API key) */

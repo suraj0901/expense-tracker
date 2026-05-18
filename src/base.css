@@ -100,7 +100,7 @@ body {
 }
 
 .app-content {
-  flex: 1; overflow-y: auto; overflow-x: hidden;
+  flex: 1; overflow: hidden;
 }
 
 /* ─── Bottom Nav ──────────────────────────────────────────────────────── */

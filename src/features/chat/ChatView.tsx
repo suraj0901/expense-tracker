@@ -1,41 +1,34 @@
 /**
- * ChatView — the primary view. Message list + input box.
+ * ChatView — SmartHeader + SuggestionStrip + message feed + input.
  */
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, Fragment } from 'react';
 import { useChatStore } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
 import { MessageBubble } from './MessageBubble';
-import { onSuggestion, dismissSuggestion, type Suggestion } from '../../core/scheduler';
+import { SmartHeader } from './SmartHeader';
+import { SuggestionStrip } from './SuggestionStrip';
+import { DateSeparator, dateKey } from './DateSeparator';
+import { EmptyState } from './EmptyState';
+import { onSuggestion, type Suggestion } from '../../core/scheduler';
+import type { ToolCallRecord } from '../../core/domain/types';
 
-const SUGGESTIONS = [
-  '☕ "chai 15 at tapri"',
-  '🚗 "auto 25, bus 20"',
-  '📊 "how much did I spend on food this month?"',
-  '📝 "show me my May report"',
-];
+function isStoreCall(tc: ToolCallRecord): boolean {
+  return tc.name === 'store_expense' || tc.name === 'store_income';
+}
 
 export function ChatView() {
   const {
-    messages,
-    inputValue,
-    isSending,
-    error,
-    isLoading,
-    setInput,
-    loadMessages,
-    sendMessage,
-    clearError,
+    messages, inputValue, isSending, error, isLoading,
+    setInput, loadMessages, sendMessage, clearError,
   } = useChatStore();
 
   const { provider } = useSettingsStore();
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
+  useEffect(() => { loadMessages(); }, [loadMessages]);
 
   useEffect(() => {
     return onSuggestion((s) => setSuggestion(s));
@@ -45,9 +38,15 @@ export function ChatView() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSending]);
 
+  const triggerRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    loadMessages();
+  }, [loadMessages]);
+
   const handleSend = async () => {
     if (!provider) return;
     await sendMessage(provider);
+    triggerRefresh();
     inputRef.current?.focus();
   };
 
@@ -58,23 +57,22 @@ export function ChatView() {
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    // Extract the text between quotes
-    const match = suggestion.match(/"([^"]+)"/);
-    if (match) {
-      setInput(match[1]);
-      inputRef.current?.focus();
-    }
-  };
+  const handleSuggestionClear = useCallback(() => setSuggestion(null), []);
 
   const isConfigured = provider?.isConfigured() ?? false;
 
+  // Group messages by date for separators
+  let lastDateKey = '';
+
   return (
     <div className="chat-container">
-      <div className="chat-header">
-        <h1>💰 Expense Tracker</h1>
-        <p>Tell me what you spent — I'll handle the rest</p>
-      </div>
+      <SmartHeader refreshKey={refreshKey} />
+
+      <SuggestionStrip
+        suggestion={suggestion}
+        onClear={handleSuggestionClear}
+        onLogged={triggerRefresh}
+      />
 
       {!isConfigured && (
         <div className="setup-banner">
@@ -89,13 +87,6 @@ export function ChatView() {
         </div>
       )}
 
-      {suggestion && (
-        <div className="suggestion-banner">
-          <span>💡 {suggestion.text}</span>
-          <button onClick={() => { dismissSuggestion(suggestion.id); setSuggestion(null); }}>✕</button>
-        </div>
-      )}
-
       {error && (
         <div className="error-banner">
           <span>⚠️ {error}</span>
@@ -107,33 +98,26 @@ export function ChatView() {
         {isLoading ? (
           <div className="chat-empty">
             <div className="typing-indicator">
-              <div className="dot" />
-              <div className="dot" />
-              <div className="dot" />
+              <div className="dot" /><div className="dot" /><div className="dot" />
             </div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="chat-empty">
-            <div className="empty-icon">💬</div>
-            <h2>Start tracking expenses</h2>
-            <p>Just tell me what you spent in natural language. Try one of these:</p>
-            <div className="suggestions">
-              {SUGGESTIONS.map((s, i) => (
-                <button
-                  key={i}
-                  className="suggestion-chip"
-                  onClick={() => handleSuggestionClick(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <EmptyState onQuickLog={triggerRefresh} />
         ) : (
           <>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))}
+            {messages.map((msg) => {
+              const dk = dateKey(msg.createdAt);
+              const showSeparator = dk !== lastDateKey;
+              lastDateKey = dk;
+
+              return (
+                <Fragment key={msg.id}>
+                  {showSeparator && <DateSeparator timestamp={msg.createdAt} />}
+                  <MessageBubble message={msg} />
+                </Fragment>
+              );
+            })}
+
           </>
         )}
 
@@ -141,9 +125,7 @@ export function ChatView() {
           <div className="message assistant">
             <div className="message-bubble">
               <div className="typing-indicator">
-                <div className="dot" />
-                <div className="dot" />
-                <div className="dot" />
+                <div className="dot" /><div className="dot" /><div className="dot" />
               </div>
             </div>
           </div>

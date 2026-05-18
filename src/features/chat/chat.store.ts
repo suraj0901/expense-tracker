@@ -23,6 +23,9 @@ interface ChatState {
   loadMessages: () => Promise<void>;
   sendMessage: (provider: AIProvider) => Promise<AgentResponse | null>;
   undoDelete: (transactionId: string) => Promise<void>;
+  deleteTransaction: (transactionId: string) => Promise<void>;
+  updateTransactionCategory: (transactionId: string, category: string) => Promise<void>;
+  updateTransactionFromDb: (transactionId: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -97,6 +100,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('[ChatStore] Undo failed:', error);
     }
+  },
+
+  deleteTransaction: async (transactionId) => {
+    try {
+      await db.softDelete(transactionId);
+    } catch (error) {
+      console.error('[ChatStore] Delete failed:', error);
+    }
+  },
+
+  updateTransactionCategory: async (transactionId, category) => {
+    try {
+      await db.updateTransaction(transactionId, { category, updatedAt: Date.now() });
+    } catch (error) {
+      console.error('[ChatStore] Category update failed:', error);
+    }
+  },
+
+  updateTransactionFromDb: async (_transactionId) => {
+    // Reload messages to reflect the change from DB
+    await get().loadMessages();
   },
 
   clearError: () => set({ error: null }),

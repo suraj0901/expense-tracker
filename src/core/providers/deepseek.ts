@@ -45,10 +45,13 @@ export class DeepSeekProvider implements AIProvider {
       function: { name: t.name, description: t.description, parameters: t.parameters },
     })) : undefined;
 
-    // First call: require tool use so the model always acts on user input.
-    // Subsequent loop calls: let the model decide when to stop.
-    const hasToolHistory = messages.some((m) => m.role === 'tool');
-    const toolChoice = hasToolHistory ? 'auto' : 'required';
+    // Force tool use on the first assistant turn only so the model
+    // cannot bail before calling store_expense/store_income. After the
+    // first tool call, relax to auto so the model can stop when done.
+    const assistantToolTurns = messages.filter(
+      (m) => m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0
+    ).length;
+    const toolChoice = assistantToolTurns < 1 ? 'required' : 'auto';
 
     const response = await this.client.chat.completions.create({
       model: 'deepseek-chat', max_tokens: 4096, messages: openaiMessages,

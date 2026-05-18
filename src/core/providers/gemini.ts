@@ -1,7 +1,7 @@
 /**
  * Gemini provider — Google Generative AI SDK.
  */
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, FunctionCallingMode } from '@google/generative-ai';
 import type { Content, Part, FunctionDeclarationSchema } from '@google/generative-ai';
 import type { AIProvider, ProviderMessage, ProviderResponse } from './types';
 import type { ToolDefinition } from '../agent/tools';
@@ -57,7 +57,15 @@ export class GeminiProvider implements AIProvider {
       }] : undefined,
     });
 
-    const resp = await model.generateContent({ contents });
+    // Force function calling for up to 5 assistant turns
+    const assistantToolTurns = messages.filter(
+      (m) => m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0
+    ).length;
+    const toolConfig = tools.length > 0 ? {
+      functionCallingConfig: { mode: assistantToolTurns < 5 ? FunctionCallingMode.ANY : FunctionCallingMode.AUTO },
+    } : undefined;
+
+    const resp = await model.generateContent({ contents, toolConfig });
     return this.parseResponse(resp);
   }
 

@@ -67,6 +67,29 @@ export const logger = {
     });
   },
 
+  /** Create a trace_id and emit a start log. Returns the trace_id. */
+  startTrace(operation: string, extra?: Record<string, unknown>): string {
+    const trace_id = newTraceId();
+    emit({ level: 'INFO', message: `${operation}:start`, trace_id, ...extra });
+    return trace_id;
+  },
+
+  /** Emit an end log with duration_ms computed from the start trace_id. */
+  endTrace(
+    traceId: string,
+    operation: string,
+    status: 'success' | 'error',
+    extra?: Record<string, unknown>
+  ): void {
+    emit({
+      level: status === 'error' ? 'ERROR' : 'INFO',
+      message: `${operation}:end`,
+      trace_id: traceId,
+      result_status: status,
+      ...extra,
+    });
+  },
+
   /** Wrap an async operation with start/end logging + duration_ms */
   async withTrace<T>(
     message: string,

@@ -10,8 +10,11 @@ import { format, subMonths, addMonths, differenceInDays } from 'date-fns';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 import * as db from '../../core/db/client';
-import type { MonthlySummary, CategoryBreakdownItem } from '../../core/domain/types';
+import type { MonthlySummary, CategoryBreakdownItem, BudgetStatusItem } from '../../core/domain/types';
 import type { Goal } from '../../core/db/client';
+import { logger } from '../../core/logger';
+import { useSettingsStore } from '../settings/settings.store';
+import { generateInsight } from './insights';
 
 const CHART_COLORS = [
   '#818cf8', '#f472b6', '#34d399', '#fbbf24',
@@ -32,20 +35,43 @@ export function DashboardView() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareData, setCompareData] = useState<CompareDatum[] | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [insight, setInsight] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [previousSummary, setPreviousSummary] = useState<MonthlySummary | null>(null);
+  const [budgetStatus, setBudgetStatus] = useState<{ hasBudgets: boolean; items: BudgetStatusItem[] } | null>(null);
+  const provider = useSettingsStore((s) => s.provider);
 
   const month = currentDate.getMonth() + 1;
   const year = currentDate.getFullYear();
 
   const loadSummary = useCallback(async () => {
     setIsLoading(true);
+    const traceId = logger.startTrace('dashboard:loadSummary', { month, year });
     try {
-      const data = await db.getMonthlySummary(month, year);
+      const [data, prevData, budgetData] = await Promise.all([
+        db.getMonthlySummary(month, year),
+        db.getMonthlySummary(
+          subMonths(currentDate, 1).getMonth() + 1,
+          subMonths(currentDate, 1).getFullYear(),
+        ),
+        db.getBudgetStatus(),
+      ]);
       setSummary(data as MonthlySummary);
+      setPreviousSummary(prevData as MonthlySummary);
+      setBudgetStatus(budgetData);
+      logger.endTrace(traceId, 'dashboard:loadSummary', 'success', {
+        totalExpense: data.totalExpense,
+        totalIncome: data.totalIncome,
+        categories: data.categoryBreakdown.length,
+      });
     } catch (error) {
+      logger.endTrace(traceId, 'dashboard:loadSummary', 'error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       console.error('[Dashboard] Failed to load summary:', error);
     }
     setIsLoading(false);
-  }, [month, year]);
+  }, [month, year, currentDate]);
 
   useEffect(() => {
     loadSummary();
@@ -54,6 +80,30 @@ export function DashboardView() {
   useEffect(() => {
     db.getGoals().then(setGoals).catch(() => {});
   }, [month, year]);
+
+  // Generate AI insight when summary, goals, budget, and provider are ready
+  useEffect(() => {
+    if (!summary || !provider || !budgetStatus) return;
+
+    let cancelled = false;
+    setInsightLoading(true);
+    setInsight(null);
+
+    generateInsight(summary, previousSummary, goals, budgetStatus, provider)
+      .then((text) => {
+        if (!cancelled) setInsight(text);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          logger.warn('dashboard:insightFailed', { error: err instanceof Error ? err.message : String(err) });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setInsightLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [summary, previousSummary, goals, budgetStatus, provider]);
 
   const loadCompareData = useCallback(async () => {
     const months: { label: string; month: number; year: number }[] = [];
@@ -181,9 +231,13 @@ export function DashboardView() {
 
       {hasData ? (
         <>
-          {summary.totalIncome > 0 && (
-            <div className="insight-card">
-              <h3>✨ Monthly Insight</h3>
+          <div className="insight-card">
+            <h3>✨ Monthly Insight</h3>
+            {insightLoading ? (
+              <p className="skeleton" style={{ width: '100%', height: '40px' }} />
+            ) : insight ? (
+              <p>{insight}</p>
+            ) : (
               <p>
                 You saved {summary.savingsRate.toFixed(0)}% of your income this month.
                 {summary.categoryBreakdown.length > 0 && (
@@ -191,8 +245,8 @@ export function DashboardView() {
                   {summary.categoryBreakdown[0].category} ({formatINR(summary.categoryBreakdown[0].total)}).</>
                 )}
               </p>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="compare-toggle-row">
             <h3>{compareMode ? '3-Month Comparison' : 'Spending by Category'}</h3>

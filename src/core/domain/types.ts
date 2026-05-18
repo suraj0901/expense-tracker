@@ -56,6 +56,7 @@ export const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
 export type MessageRole = 'user' | 'assistant';
 
 export interface ToolCallRecord {
+  id: string;
   name: string;
   args: Record<string, unknown>;
   result?: unknown;

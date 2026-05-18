@@ -1,7 +1,7 @@
 /**
  * Summary operations — monthly summaries, category breakdowns, budget status.
  */
-import { eq, and, gte, lte, desc, sql, sum, count, ne } from 'drizzle-orm';
+import { eq, and, gte, lt, desc, sql, sum, count, ne } from 'drizzle-orm';
 import * as schema from './schema';
 import { db } from './init';
 import type { Paise } from '../domain/money';
@@ -13,7 +13,7 @@ export async function getMonthlySummary(month: number, year: number) {
     type: schema.transactions.type, total: sum(schema.transactions.amount),
   }).from(schema.transactions).where(and(
     eq(schema.transactions.isDeleted, false),
-    gte(schema.transactions.date, startDate), lte(schema.transactions.date, endDate),
+    gte(schema.transactions.date, startDate), lt(schema.transactions.date, endDate),
   )).groupBy(schema.transactions.type);
   let totalIncome = 0, totalExpense = 0;
   for (const row of results) {
@@ -26,7 +26,7 @@ export async function getMonthlySummary(month: number, year: number) {
     total: sum(schema.transactions.amount), count: count(),
   }).from(schema.transactions).where(and(
     eq(schema.transactions.isDeleted, false), eq(schema.transactions.type, 'expense'),
-    gte(schema.transactions.date, startDate), lte(schema.transactions.date, endDate),
+    gte(schema.transactions.date, startDate), lt(schema.transactions.date, endDate),
   )).groupBy(schema.transactions.category).orderBy(desc(sum(schema.transactions.amount)));
   const allCats = await db.select().from(schema.categories);
   const iconMap = new Map(allCats.map((c) => [c.name, c.icon ?? '📦']));
@@ -49,7 +49,7 @@ export async function getCategoryBreakdown(startDate: string, endDate: string) {
     total: sum(schema.transactions.amount), count: count(),
   }).from(schema.transactions).where(and(
     eq(schema.transactions.isDeleted, false), eq(schema.transactions.type, 'expense'),
-    gte(schema.transactions.date, startDate), lte(schema.transactions.date, endDate),
+    gte(schema.transactions.date, startDate), lt(schema.transactions.date, endDate),
   )).groupBy(schema.transactions.category).orderBy(desc(sum(schema.transactions.amount)));
   const total = results.reduce((acc, r) => acc + (Number(r.total) || 0), 0);
   const allCats = await db.select().from(schema.categories);
@@ -76,7 +76,7 @@ export async function getBudgetStatus() {
       .from(schema.transactions).where(and(
         eq(schema.transactions.isDeleted, false), eq(schema.transactions.type, 'expense'),
         eq(schema.transactions.category, cat.name),
-        gte(schema.transactions.date, startDate), lte(schema.transactions.date, endDate),
+        gte(schema.transactions.date, startDate), lt(schema.transactions.date, endDate),
       ));
     const spent = (Number(spentResult[0]?.total) || 0) as Paise;
     const budget = (cat.budgetAmount ?? 0) as Paise;

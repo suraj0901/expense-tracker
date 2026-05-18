@@ -13,18 +13,32 @@ import type { Paise } from '../domain/money';
 import type { ToolCall, ToolResult } from '../domain/types';
 import { TOOL_SCHEMAS } from './tool-schemas';
 import * as db from '../db/client';
+import { logger } from '../logger';
 
 /**
  * Execute a single tool call and return the result.
  * Validates arguments with Zod before execution.
  */
-export async function executeTool(call: ToolCall): Promise<ToolResult> {
+export async function executeTool(call: ToolCall, traceId?: string): Promise<ToolResult> {
+  const start = performance.now();
+  logger.info('tool:execute', {
+    traceId,
+    toolName: call.name,
+    toolCallId: call.id,
+  });
+  logger.debug('tool:args', { traceId, toolName: call.name, args: call.args });
+
   try {
     // Validate arguments against Zod schema
     const schema = TOOL_SCHEMAS[call.name];
     if (schema) {
       const parseResult = schema.safeParse(call.args);
       if (!parseResult.success) {
+        logger.warn('tool:validationError', {
+          traceId,
+          toolName: call.name,
+          error: parseResult.error.message,
+        });
         return {
           toolCallId: call.id,
           result: null,
@@ -34,16 +48,18 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
     }
 
     const result = await executeToolInternal(call);
-    return {
-      toolCallId: call.id,
-      result,
-    };
+    const durationMs = Math.round(performance.now() - start);
+    logger.info('tool:success', { traceId, toolName: call.name, durationMs });
+    return { toolCallId: call.id, result };
   } catch (error) {
-    return {
-      toolCallId: call.id,
-      result: null,
-      error: error instanceof Error ? error.message : `Unknown error executing ${call.name}`,
-    };
+    const durationMs = Math.round(performance.now() - start);
+    const errorMessage = error instanceof Error ? error.message : `Unknown error executing ${call.name}`;
+    logger.error('tool:failed', error instanceof Error ? error : new Error(errorMessage), {
+      traceId,
+      toolName: call.name,
+      durationMs,
+    });
+    return { toolCallId: call.id, result: null, error: errorMessage };
   }
 }
 

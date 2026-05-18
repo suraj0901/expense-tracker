@@ -18,7 +18,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         <div className="message-bubble">
           <p style={{ whiteSpace: 'pre-wrap' }}>{message.content}</p>
 
-          {message.toolCalls && message.toolCalls.length > 0 && (
+          {import.meta.env.DEV && message.toolCalls && message.toolCalls.length > 0 && (
             <div className="message-tools">
               {message.toolCalls.map((tc, i) => (
                 <span key={i} className="tool-badge">

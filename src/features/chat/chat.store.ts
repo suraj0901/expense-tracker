@@ -10,6 +10,7 @@ import type { Message, AgentResponse } from '../../core/domain/types';
 import { processMessage } from '../../core/agent/agent';
 import type { AIProvider } from '../../core/providers/types';
 import * as db from '../../core/db/client';
+import { logger } from '../../core/logger';
 
 interface ChatState {
   messages: Message[];
@@ -49,9 +50,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         createdAt: m.createdAt,
       }));
       set({ messages: parsed, isLoading: false });
+      logger.debug('chat:loadMessages', { count: parsed.length });
     } catch (error) {
       set({ error: 'Failed to load messages', isLoading: false });
-      console.error('[ChatStore] Failed to load messages:', error);
+      logger.error('chat:loadMessagesFailed', error instanceof Error ? error : new Error(String(error)));
     }
   },
 
@@ -73,16 +75,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages: [...messages, userMsg] });
 
     try {
+      logger.info('chat:sendMessage', {
+        provider: provider.id,
+        messageLength: trimmed.length,
+        historyLength: messages.length,
+      });
+
       const response = await processMessage(trimmed, messages, provider);
 
       // Reload messages from DB to get persisted IDs
       await get().loadMessages();
+
+      logger.info('chat:sendMessageComplete', {
+        provider: provider.id,
+        toolsUsed: response.toolsUsed.map((tc) => tc.name),
+        responseLength: response.text.length,
+      });
 
       set({ isSending: false });
       return response;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Something went wrong';
+      logger.error('chat:sendMessageFailed', error instanceof Error ? error : new Error(errorMessage), {
+        provider: provider.id,
+      });
       set({
         isSending: false,
         error: errorMessage,

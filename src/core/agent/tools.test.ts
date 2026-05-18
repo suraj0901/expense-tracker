@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   StoreExpenseSchema, StoreIncomeSchema, GetExpensesSchema,
-  GetMonthlySummarySchema, GetCategoryBreakdownSchema,
+  GetMonthlySummarySchema,
   UpdateExpenseSchema, DeleteExpenseSchema, UndoDeleteSchema,
   GetBudgetStatusSchema,
 } from './tool-schemas';

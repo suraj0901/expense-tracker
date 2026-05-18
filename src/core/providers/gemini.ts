@@ -2,7 +2,7 @@
  * Gemini provider — Google Generative AI SDK.
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { FunctionDeclarationsTool, Content, Part } from '@google/generative-ai';
+import type { Content, Part, FunctionDeclarationSchema } from '@google/generative-ai';
 import type { AIProvider, ProviderMessage, ProviderResponse } from './types';
 import type { ToolDefinition } from '../agent/tools';
 import type { ToolCall } from '../domain/types';
@@ -32,8 +32,8 @@ export class GeminiProvider implements AIProvider {
         contents.push({ role: 'model', parts });
       } else if (m.role === 'tool' && m.toolCallId) {
         // Find the tool name — use content directly as parsed JSON
-        let response: unknown;
-        try { response = JSON.parse(m.content); } catch { response = m.content; }
+        let response: object;
+        try { response = JSON.parse(m.content); } catch { response = { text: m.content }; }
         contents.push({
           role: 'user',
           parts: [{ functionResponse: { name: '', response } }],
@@ -52,7 +52,7 @@ export class GeminiProvider implements AIProvider {
       tools: tools.length > 0 ? [{
         functionDeclarations: tools.map((t) => ({
           name: t.name, description: t.description,
-          parameters: t.parameters as FunctionDeclarationsTool['functionDeclarations'][0]['parameters'],
+          parameters: t.parameters as unknown as FunctionDeclarationSchema,
         })),
       }] : undefined,
     });

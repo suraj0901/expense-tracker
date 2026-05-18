@@ -10,11 +10,6 @@ import { SuggestionStrip } from './SuggestionStrip';
 import { DateSeparator, dateKey } from './DateSeparator';
 import { EmptyState } from './EmptyState';
 import { onSuggestion, type Suggestion } from '../../core/scheduler';
-import type { ToolCallRecord } from '../../core/domain/types';
-
-function isStoreCall(tc: ToolCallRecord): boolean {
-  return tc.name === 'store_expense' || tc.name === 'store_income';
-}
 
 export function ChatView() {
   const {

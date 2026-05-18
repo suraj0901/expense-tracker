@@ -4,7 +4,7 @@
  * Queries the DB directly (no AI credits consumed). Detects repeated
  * patterns: same category + similar amount (±20%) appearing 3+ times.
  */
-import { queryTransactions, getRecent, getMerchantHints } from './db/client';
+import { getRecent, getMerchantHints } from './db/client';
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 
@@ -38,7 +38,7 @@ function emit(s: Suggestion): void {
   for (const fn of listeners) fn(s);
 }
 
-async function tick(): Promise<void> {
+export async function tick(): Promise<void> {
   try {
     const recent = await getRecent(50);
     const groups = new Map<string, { amounts: number[]; merchant: string | null }>();

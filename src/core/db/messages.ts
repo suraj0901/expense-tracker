@@ -1,7 +1,7 @@
 /**
  * Message persistence — save and retrieve chat messages.
  */
-import { eq, desc } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 import * as schema from './schema';
 import { db } from './init';
 

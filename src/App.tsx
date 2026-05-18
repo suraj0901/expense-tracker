@@ -11,7 +11,7 @@ import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
 import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase } from './core/db/client';
-import { startScheduler } from './core/scheduler';
+import { startScheduler, tick } from './core/scheduler';
 
 type Route = 'chat' | 'dashboard' | 'settings';
 
@@ -26,6 +26,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>(getRouteFromHash);
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const { initialize: initSettings } = useSettingsStore();
 
   const initApp = useCallback(async () => {
@@ -45,6 +46,54 @@ export default function App() {
   useEffect(() => {
     initApp();
   }, [initApp]);
+
+  // PWA install prompt
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
+
+  // Register periodic background sync for suggestion checks
+  useEffect(() => {
+    const registerSync = async () => {
+      const registration = await navigator.serviceWorker.ready;
+      if ('periodicSync' in registration) {
+        try {
+          await (registration.periodicSync as PeriodicSyncManager).register(
+            'suggestion-check',
+            { minInterval: 30 * 60 * 1000 } // 30 min
+          );
+        } catch {
+          // Permission denied or not supported — main-thread scheduler covers it
+        }
+      }
+    };
+    registerSync();
+  }, []);
+
+  // Listen for SW messages (e.g., scheduler checks from periodic sync)
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'SCHEDULER_CHECK') {
+        tick();
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, []);
 
   // Hash-based routing
   useEffect(() => {
@@ -95,6 +144,16 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {installPrompt && (
+        <div className="install-banner">
+          <span>Install this app for quick access</span>
+          <div className="install-banner-actions">
+            <button className="install-btn" onClick={handleInstall}>Install</button>
+            <button className="install-dismiss" onClick={() => setInstallPrompt(null)}>✕</button>
+          </div>
+        </div>
+      )}
+
       <div className="app-content">
         {route === 'chat' && <ChatView />}
         {route === 'dashboard' && <DashboardView />}

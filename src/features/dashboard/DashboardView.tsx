@@ -175,7 +175,7 @@ export function DashboardView() {
                       background: '#1a1a2e', border: '1px solid #2a2a42',
                       borderRadius: '8px', fontSize: '0.8rem',
                     }}
-                    formatter={(value: number) => [formatINR((value * 100) as unknown as Paise), 'Amount']}
+                    formatter={(value) => [formatINR(((value as number) * 100) as unknown as Paise), 'Amount']}
                   />
                   {(() => {
                     const months = compareData.length > 0
@@ -207,7 +207,7 @@ export function DashboardView() {
                         background: '#1a1a2e', border: '1px solid #2a2a42',
                         borderRadius: '8px', fontSize: '0.8rem',
                       }}
-                      formatter={(value: number) => [formatINR(value as unknown as Paise), 'Amount']}
+                      formatter={(value) => [formatINR(value as unknown as Paise), 'Amount']}
                     />
                   </PieChart>
                 </ResponsiveContainer>

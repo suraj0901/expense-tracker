@@ -65,7 +65,10 @@ export class DeepSeekProvider implements AIProvider {
       textContent = choice.message.content ?? '';
       if (choice.message.tool_calls) {
         for (const tc of choice.message.tool_calls) {
-          toolCalls.push({ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) as Record<string, unknown> });
+          const fn = (tc as { function?: { name?: string; arguments?: string } }).function;
+          if (fn?.name) {
+            toolCalls.push({ id: tc.id, name: fn.name, args: JSON.parse(fn.arguments ?? '{}') as Record<string, unknown> });
+          }
         }
       }
     }

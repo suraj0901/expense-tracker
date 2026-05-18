@@ -13,6 +13,9 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB — large WebLLM model bundle
+      },
       manifest: {
         name: 'AI Expense Tracker',
         short_name: 'ExpenseTracker',

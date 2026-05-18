@@ -9,8 +9,7 @@
 
 import { nanoid } from 'nanoid';
 import { format } from 'date-fns';
-import { insertTransaction } from './db/client';
-import { getRecent } from './db/client';
+import { insertTransaction, queryTransactions } from './db/client';
 import { rupeesToPaise, paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import type { Suggestion } from './scheduler';
@@ -89,9 +88,7 @@ export async function processAutoLogRules(): Promise<number> {
   const hour = now.getHours();
   const today = format(now, 'yyyy-MM-dd');
 
-  // Check if any transaction already logged for each rule today
-  const recent = await getRecent(30);
-  const todayTxns = recent.filter((t) => t.date === today);
+  const todayTxns = await queryTransactions({ start_date: today, end_date: today, limit: 1000 });
 
   let autoLogged = 0;
   for (const rule of rules) {

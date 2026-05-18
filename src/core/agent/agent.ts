@@ -7,11 +7,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import type {
-  AIProvider,
-  ProviderMessage,
-  ProviderToolResultMessage,
-} from '../providers/types';
+import type { AIProvider, ProviderMessage } from '../providers/types';
 import type { AgentResponse, Message, ToolCallRecord } from '../domain/types';
 import { TOOL_DEFINITIONS } from './tools';
 import { executeTool } from './tool-executor';
@@ -83,20 +79,28 @@ export async function processMessage(
       });
     }
 
-    // Send tool results back to AI
-    const toolResultMessages: ProviderToolResultMessage[] = toolResults.map((tr, i) => ({
-      role: 'tool' as const,
-      toolCallId: tr.toolCallId,
-      name: response.toolCalls[i].name,
-      content: JSON.stringify(tr.error ? { error: tr.error } : tr.result),
-    }));
+    // Accumulate assistant message with tool calls into conversation
+    messages.push({
+      role: 'assistant',
+      content: response.content,
+      toolCalls: response.toolCalls.map((tc) => ({
+        id: tc.id,
+        name: tc.name,
+        args: tc.args,
+      })),
+    });
 
-    response = await provider.chatWithToolResults(
-      messages,
-      toolResultMessages,
-      TOOL_DEFINITIONS,
-      response.raw
-    );
+    // Accumulate tool result messages into conversation
+    for (let i = 0; i < response.toolCalls.length; i++) {
+      const tr = toolResults[i];
+      messages.push({
+        role: 'tool',
+        toolCallId: tr.toolCallId,
+        content: JSON.stringify(tr.error ? { error: tr.error } : tr.result),
+      });
+    }
+
+    response = await provider.chat(messages, TOOL_DEFINITIONS);
   }
 
   // Persist assistant message + any tool calls to messages table

@@ -144,3 +144,141 @@
 .progress-text { font-size: 0.72rem; font-weight: 600; color: var(--color-accent); min-width: 36px; }
 
 .model-download-btn { width: 100%; }
+
+/* ─── Auto-Log Rules ────────────────────────────────────────────────── */
+
+.auto-log-badge {
+  font-size: 0.65rem; font-weight: 500; margin-left: 8px;
+  padding: 2px 8px; border-radius: var(--radius-full);
+  background: var(--color-accent-muted); color: var(--color-accent-text);
+  vertical-align: middle;
+}
+
+.auto-log-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.auto-log-rule {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+  transition: border-color 0.2s ease;
+}
+
+.auto-log-rule.enabled {
+  border-color: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.auto-log-rule-info {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+  flex: 1; min-width: 0;
+}
+
+.auto-log-rule-category {
+  font-size: 0.82rem; font-weight: 600; color: var(--color-text-primary);
+}
+
+.auto-log-rule-amount {
+  font-size: 0.78rem; font-weight: 700; color: var(--color-expense);
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-log-rule-merchant {
+  font-size: 0.7rem; color: var(--color-text-muted);
+}
+
+.auto-log-rule-time {
+  display: block; width: 100%; font-size: 0.65rem; color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.auto-log-rule-actions {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+
+.auto-log-remove {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-muted); font-size: 0.85rem; padding: 2px;
+  transition: color 0.15s;
+}
+
+.auto-log-remove:hover { color: var(--color-danger); }
+
+.auto-log-hint {
+  font-size: 0.68rem; color: var(--color-text-muted);
+  line-height: 1.5; margin-top: 4px; opacity: 0.7;
+}
+
+/* ─── Goals (Dashboard) ───────────────────────────────────────────────── */
+
+.goals-section {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.goals-section h3 {
+  font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.goals-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.goal-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+
+.goal-card.complete {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.05);
+}
+
+.goal-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.goal-name {
+  font-size: 0.85rem; font-weight: 600;
+}
+
+.goal-badge {
+  font-size: 0.65rem; font-weight: 600; padding: 2px 8px;
+  border-radius: var(--radius-full); background: var(--color-income);
+  color: var(--color-text-inverse);
+}
+
+.goal-progress-bar {
+  height: 6px; border-radius: 3px;
+  background: var(--color-bg-tertiary); overflow: hidden;
+}
+
+.goal-progress-fill {
+  height: 100%; background: var(--color-accent);
+  border-radius: 3px; transition: width 0.3s ease;
+}
+
+.goal-card.complete .goal-progress-fill {
+  background: var(--color-income);
+}
+
+.goal-meta {
+  display: flex; justify-content: space-between;
+  font-size: 0.75rem; color: var(--color-text-secondary);
+}
+
+.goal-percent {
+  font-weight: 600; color: var(--color-accent);
+}
+
+.goal-deadline {
+  font-size: 0.68rem; color: var(--color-text-muted);
+}
+
+/* ─── Export Buttons (Settings) ───────────────────────────────────────── */
+
+.export-buttons {
+  display: flex; gap: 10px;
+}

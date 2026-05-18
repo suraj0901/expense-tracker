@@ -6,11 +6,12 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { format, subMonths, addMonths } from 'date-fns';
+import { format, subMonths, addMonths, differenceInDays } from 'date-fns';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 import * as db from '../../core/db/client';
 import type { MonthlySummary, CategoryBreakdownItem } from '../../core/domain/types';
+import type { Goal } from '../../core/db/client';
 
 const CHART_COLORS = [
   '#818cf8', '#f472b6', '#34d399', '#fbbf24',
@@ -30,6 +31,7 @@ export function DashboardView() {
   const [isLoading, setIsLoading] = useState(true);
   const [compareMode, setCompareMode] = useState(false);
   const [compareData, setCompareData] = useState<CompareDatum[] | null>(null);
+  const [goals, setGoals] = useState<Goal[]>([]);
 
   const month = currentDate.getMonth() + 1;
   const year = currentDate.getFullYear();
@@ -48,6 +50,10 @@ export function DashboardView() {
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
+
+  useEffect(() => {
+    db.getGoals().then(setGoals).catch(() => {});
+  }, [month, year]);
 
   const loadCompareData = useCallback(async () => {
     const months: { label: string; month: number; year: number }[] = [];
@@ -130,6 +136,48 @@ export function DashboardView() {
           <div className="amount">{summary ? formatINR(summary.savings) : '₹0'}</div>
         </div>
       </div>
+
+      {goals.length > 0 && (
+        <div className="goals-section">
+          <h3>🎯 Goals</h3>
+          <div className="goals-list">
+            {goals.map((goal) => {
+              const progress = goal.targetAmount > 0
+                ? Math.min(100, (goal.currentAmount / goal.targetAmount) * 100)
+                : 0;
+              const daysLeft = goal.deadline
+                ? differenceInDays(new Date(goal.deadline), new Date())
+                : null;
+              const isComplete = progress >= 100;
+              return (
+                <div key={goal.id} className={`goal-card ${isComplete ? 'complete' : ''}`}>
+                  <div className="goal-header">
+                    <span className="goal-name">
+                      {goal.category ? `${goal.category} — ` : ''}{goal.name}
+                    </span>
+                    {isComplete && <span className="goal-badge">Done!</span>}
+                  </div>
+                  <div className="goal-progress-bar">
+                    <div
+                      className="goal-progress-fill"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="goal-meta">
+                    <span>{formatINR(goal.currentAmount)} of {formatINR(goal.targetAmount)}</span>
+                    <span className="goal-percent">{progress.toFixed(0)}%</span>
+                  </div>
+                  {daysLeft !== null && !isComplete && (
+                    <div className="goal-deadline">
+                      {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Due today' : `${Math.abs(daysLeft)} days overdue`}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {hasData ? (
         <>

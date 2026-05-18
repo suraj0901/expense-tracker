@@ -107,8 +107,8 @@ describe('GetBudgetStatusSchema', () => {
 });
 
 describe('TOOL_DEFINITIONS', () => {
-  it('has 10 tools', () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(10);
+  it('has 15 tools', () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(15);
   });
 
   it('every tool has a name, description, and parameters', () => {

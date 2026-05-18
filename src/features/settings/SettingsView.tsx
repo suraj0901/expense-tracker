@@ -7,6 +7,7 @@ import { useSettingsStore } from './settings.store';
 import type { ProviderType } from '../../core/providers/types';
 import { LocalAIProvider } from '../../core/providers/local';
 import { ModelDownloadCard } from './ModelDownloadCard';
+import { AutoLogRules } from './AutoLogRules';
 
 export function SettingsView() {
   const { settings, provider, setActiveProvider, setApiKey, clearApiKey, setWebLLMEnabled } =
@@ -21,11 +22,13 @@ export function SettingsView() {
       anthropic: anthropicKeyInput,
       gemini: geminiKeyInput,
       deepseek: deepseekKeyInput,
+      webllm: '',
     };
     const clearMap: Record<ProviderType, () => void> = {
       anthropic: () => setAnthropicKeyInput(''),
       gemini: () => setGeminiKeyInput(''),
       deepseek: () => setDeepseekKeyInput(''),
+      webllm: () => {},
     };
     const key = keyMap[type];
     if (key.trim()) {
@@ -229,6 +232,27 @@ export function SettingsView() {
             </div>
           )}
         </div>
+      </div>
+
+      <AutoLogRules />
+
+      <div className="settings-section">
+        <h2>Export Data</h2>
+        <div className="export-buttons">
+          <button className="btn btn-primary" onClick={() => {
+            import('../../core/db/client').then((m) => m.exportCSV());
+          }}>
+            Export CSV
+          </button>
+          <button className="btn btn-primary" onClick={() => {
+            import('../../core/db/client').then((m) => m.exportPDF());
+          }}>
+            Export PDF
+          </button>
+        </div>
+        <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+          All exports happen on-device. No data is sent anywhere.
+        </p>
       </div>
 
       <div className="settings-section">

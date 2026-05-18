@@ -158,7 +158,7 @@ export default function App() {
           { action: 'log', title: 'Log it' },
           { action: 'dismiss', title: 'Dismiss' },
         ],
-      });
+      } as NotificationOptions);
     }
 
     const unsub = onSuggestion((s) => {

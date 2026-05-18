@@ -170,6 +170,43 @@ async function executeToolInternal(call: ToolCall): Promise<unknown> {
       return db.undoDelete(args.transaction_id as string);
     }
 
+    case 'set_goal': {
+      const goal = await db.setGoal({
+        id: nanoid(),
+        name: args.name as string,
+        targetAmount: rupeesToPaise(args.target_amount as number),
+        category: (args.category as string) ?? null,
+        deadline: (args.deadline as string) ?? null,
+      });
+      return {
+        ...goal,
+        targetAmount: paiseToRupees(goal.targetAmount),
+        currentAmount: paiseToRupees(goal.currentAmount),
+      };
+    }
+
+    case 'get_goals': {
+      const goals = await db.getGoals();
+      return goals.map((g) => ({
+        ...g,
+        targetAmount: paiseToRupees(g.targetAmount),
+        currentAmount: paiseToRupees(g.currentAmount),
+      }));
+    }
+
+    case 'delete_goal': {
+      return db.deleteGoal(args.goal_id as string);
+    }
+
+    case 'list_categories': {
+      const cats = await db.getCategories();
+      return cats.map((c) => ({ name: c.name, icon: c.icon }));
+    }
+
+    case 'create_category': {
+      return db.insertCategory(args.name as string, (args.icon as string) ?? '📦');
+    }
+
     default:
       return { error: `Unknown tool: ${call.name}` };
   }

@@ -55,6 +55,19 @@ export const merchantHints = sqliteTable('merchant_hints', {
   lastUsedAt: integer('last_used_at').notNull(),
 });
 
+// ─── goals ────────────────────────────────────────────────────────────────
+
+export const goals = sqliteTable('goals', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  targetAmount: integer('target_amount').notNull(), // paise
+  currentAmount: integer('current_amount').notNull().default(0), // paise
+  category: text('category'), // nullable — if goal is category-specific
+  deadline: text('deadline'), // nullable — 'YYYY-MM-DD'
+  createdAt: integer('created_at').notNull(), // Unix ms
+  updatedAt: integer('updated_at').notNull(), // Unix ms
+});
+
 // ─── sync_metadata (Phase 2 stub) ───────────────────────────────────────
 
 export const syncMetadata = sqliteTable('sync_metadata', {

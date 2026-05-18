@@ -126,6 +126,51 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['transaction_id'],
     },
   },
+  {
+    name: 'set_goal',
+    description: 'Create a new financial goal (savings target or spending limit).',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Goal name (e.g. "Emergency Fund", "Vacation")' },
+        target_amount: { type: 'number', description: 'Target amount in rupees' },
+        category: { type: 'string', description: 'Optional category this goal applies to' },
+        deadline: { type: 'string', description: 'Optional deadline YYYY-MM-DD' },
+      },
+      required: ['name', 'target_amount'],
+    },
+  },
+  {
+    name: 'get_goals',
+    description: 'List all goals with current progress.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'delete_goal',
+    description: 'Delete a goal by ID.',
+    parameters: {
+      type: 'object',
+      properties: { goal_id: { type: 'string', description: 'Goal ID to delete' } },
+      required: ['goal_id'],
+    },
+  },
+  {
+    name: 'list_categories',
+    description: 'List all available categories.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'create_category',
+    description: 'Create a new category. Call list_categories first — only create if no existing category fits. Avoid duplicates: "Pet Care" means no need for "Pets" or "Pet Food".',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Category name (e.g. "Pet Care", "Car Maintenance")' },
+        icon: { type: 'string', description: 'Single emoji for the category' },
+      },
+      required: ['name'],
+    },
+  },
 ];
 
 // Re-export schemas for convenience

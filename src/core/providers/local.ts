@@ -18,7 +18,6 @@ const MODEL_ID = 'Qwen3.5-2B-q4f16_1-MLC';
 // ─── Tool prompt ────────────────────────────────────────────────────────
 
 const TOOL_CALL_OPEN = '<tool_call>';
-const TOOL_CALL_CLOSE = '</tool_call>';
 
 function buildToolPrompt(tools: ToolDefinition[]): string {
   if (tools.length === 0) return '';
@@ -65,7 +64,6 @@ function parseResponse(content: string): ParsedResponse {
   }
 
   // Extract all tool_call blocks
-  const remaining = content;
   const regex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
   let match;
   while ((match = regex.exec(content)) !== null) {

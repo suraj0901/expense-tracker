@@ -52,6 +52,14 @@ export async function initializeDatabase(): Promise<void> {
   await sqlocal.sql`
     CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)
   `;
+  await sqlocal.sql`
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL,
+      target_amount INTEGER NOT NULL, current_amount INTEGER NOT NULL DEFAULT 0,
+      category TEXT, deadline TEXT,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    )
+  `;
   const existing = await db.select().from(schema.categories);
   if (existing.length === 0) {
     for (const cat of DEFAULT_CATEGORIES) {

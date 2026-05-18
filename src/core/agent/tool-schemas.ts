@@ -56,7 +56,27 @@ export const UndoDeleteSchema = z.object({
   transaction_id: z.string(),
 });
 
+export const SetGoalSchema = z.object({
+  name: z.string(),
+  target_amount: z.number().positive(),
+  category: z.string().optional().nullable(),
+  deadline: z.string().optional().nullable(),
+});
+
+export const GetGoalsSchema = z.object({});
+
+export const DeleteGoalSchema = z.object({
+  goal_id: z.string(),
+});
+
 export const GetBudgetStatusSchema = z.object({});
+
+export const CreateCategorySchema = z.object({
+  name: z.string().min(1),
+  icon: z.string().optional(),
+});
+
+export const ListCategoriesSchema = z.object({});
 
 export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
   store_expense: StoreExpenseSchema,
@@ -69,4 +89,9 @@ export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
   delete_expense: DeleteExpenseSchema,
   get_budget_status: GetBudgetStatusSchema,
   undo_delete: UndoDeleteSchema,
+  set_goal: SetGoalSchema,
+  get_goals: GetGoalsSchema,
+  delete_goal: DeleteGoalSchema,
+  create_category: CreateCategorySchema,
+  list_categories: ListCategoriesSchema,
 };

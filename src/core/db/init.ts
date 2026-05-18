@@ -60,6 +60,13 @@ export async function initializeDatabase(): Promise<void> {
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     )
   `;
+  await sqlocal.sql`
+    CREATE TABLE IF NOT EXISTS insights (
+      month INTEGER NOT NULL, year INTEGER NOT NULL,
+      text TEXT NOT NULL, generated_at INTEGER NOT NULL,
+      PRIMARY KEY (month, year)
+    )
+  `;
   const existing = await db.select().from(schema.categories);
   if (existing.length === 0) {
     for (const cat of DEFAULT_CATEGORIES) {

@@ -8,6 +8,7 @@ export { getMonthlySummary, getCategoryBreakdown, getBudgetStatus } from './summ
 export { saveMessage, getMessageHistory, getAllMessages } from './messages';
 export { upsertMerchantHint, getMerchantHints } from './merchant-hints';
 export { getCategories, insertCategory } from './categories';
+export { getInsight, upsertInsight, isInsightStale } from './insights';
 export { setGoal, getGoals, updateGoal, deleteGoal } from './goals';
 export type { Goal } from './goals';
 export { exportCSV, exportPDF } from './export';

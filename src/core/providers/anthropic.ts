@@ -46,6 +46,16 @@ export class AnthropicProvider implements AIProvider {
       }
     }
 
+    // Force tool use on the first assistant turn only so the model
+    // cannot bail before calling store_expense/store_income. After the
+    // first tool call, relax to auto so the model can stop when done.
+    const assistantToolTurns = messages.filter(
+      (m) => m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0
+    ).length;
+    const toolChoice: Anthropic.Messages.ToolChoice = assistantToolTurns < 1
+      ? { type: 'any' }
+      : { type: 'auto' };
+
     const response = await this.client.messages.create({
       model: 'claude-sonnet-4-20250514', max_tokens: 4096, temperature: 0.1,
       system: systemMsg?.content ?? '', messages: conv,
@@ -53,6 +63,7 @@ export class AnthropicProvider implements AIProvider {
         name: t.name, description: t.description,
         input_schema: t.parameters as Anthropic.Messages.Tool.InputSchema,
       })),
+      tool_choice: toolChoice,
     });
     return this.parseResponse(response);
   }

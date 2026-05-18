@@ -2,8 +2,10 @@
  * AI-powered monthly insight generation.
  */
 import type { AIProvider, ProviderMessage } from '../../core/providers/types';
-import type { MonthlySummary, Goal, BudgetStatusItem } from '../../core/domain/types';
+import type { MonthlySummary, BudgetStatusItem } from '../../core/domain/types';
+import type { Goal } from '../../core/db/client';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
+import type { Paise } from '../../core/domain/money';
 import { logger } from '../../core/logger';
 
 const INSIGHT_SYSTEM_PROMPT =
@@ -67,7 +69,7 @@ function buildDataPrompt(
 
   if (previous) {
     const prevMonthName = new Date(previous.year, previous.month - 1).toLocaleString('en-US', { month: 'long' });
-    const expenseDelta = paiseToRupees(current.totalExpense - previous.totalExpense);
+    const expenseDelta = paiseToRupees((current.totalExpense - previous.totalExpense) as Paise);
     const sign = expenseDelta >= 0 ? '+' : '';
     data += `\nPrevious month (${prevMonthName} ${previous.year}): spent ${formatINR(previous.totalExpense)}, saved ${previous.savingsRate.toFixed(0)}%.\n`;
     data += `Change in spending: ${sign}₹${expenseDelta.toFixed(0)}\n`;

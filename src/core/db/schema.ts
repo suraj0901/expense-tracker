@@ -6,7 +6,7 @@
  * sync_metadata is a Phase 2 stub — table exists but is unused in MVP.
  */
 
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // ─── categories ──────────────────────────────────────────────────────────
 
@@ -76,3 +76,14 @@ export const syncMetadata = sqliteTable('sync_metadata', {
   lastSyncedAt: integer('last_synced_at'), // null until sync configured
   tursoDbUrl: text('turso_db_url'), // null until sync configured
 });
+
+// ─── insights ────────────────────────────────────────────────────────────
+
+export const insights = sqliteTable('insights', {
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  text: text('text').notNull(),
+  generatedAt: integer('generated_at').notNull(),
+}, (table) => ({
+  pk: primaryKey(table.month, table.year),
+}));

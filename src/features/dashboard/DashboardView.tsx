@@ -81,29 +81,61 @@ export function DashboardView() {
     db.getGoals().then(setGoals).catch(() => {});
   }, [month, year]);
 
-  // Generate AI insight when summary, goals, budget, and provider are ready
+  const now = new Date();
+  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+
+  // Generate AI insight only for completed (past) months. Cache in DB so we
+  // don't re-generate on every navigation. Current month shows static summary.
   useEffect(() => {
     if (!summary || !provider || !budgetStatus) return;
 
-    let cancelled = false;
-    setInsightLoading(true);
-    setInsight(null);
+    // Capture non-null values so TS narrows them across the async boundary
+    const s = summary;
+    const ps = previousSummary;
+    const g = goals;
+    const bs = budgetStatus;
+    const p = provider;
 
-    generateInsight(summary, previousSummary, goals, budgetStatus, provider)
-      .then((text) => {
-        if (!cancelled) setInsight(text);
-      })
-      .catch((err) => {
+    let cancelled = false;
+
+    async function loadInsight() {
+      if (isCurrentMonth) {
+        setInsight(null);
+        setInsightLoading(false);
+        return;
+      }
+
+      setInsightLoading(true);
+      setInsight(null);
+
+      try {
+        const cached = await db.getInsight(month, year);
+        if (cached && !(await db.isInsightStale(month, year, cached.generatedAt))) {
+          if (!cancelled) {
+            setInsight(cached.text);
+            setInsightLoading(false);
+          }
+          return;
+        }
+
+        const text = await generateInsight(s, ps, g, bs, p);
+        if (!cancelled) {
+          setInsight(text);
+          db.upsertInsight(month, year, text).catch(() => {});
+        }
+      } catch (err) {
         if (!cancelled) {
           logger.warn('dashboard:insightFailed', { error: err instanceof Error ? err.message : String(err) });
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setInsightLoading(false);
-      });
+      }
+    }
+
+    loadInsight();
 
     return () => { cancelled = true; };
-  }, [summary, previousSummary, goals, budgetStatus, provider]);
+  }, [summary, previousSummary, goals, budgetStatus, provider, isCurrentMonth, month, year]);
 
   const loadCompareData = useCallback(async () => {
     const months: { label: string; month: number; year: number }[] = [];
@@ -232,7 +264,7 @@ export function DashboardView() {
       {hasData ? (
         <>
           <div className="insight-card">
-            <h3>✨ Monthly Insight</h3>
+            <h3>{insight ? '✨ Monthly Insight' : 'Month Summary'}</h3>
             {insightLoading ? (
               <p className="skeleton" style={{ width: '100%', height: '40px' }} />
             ) : insight ? (

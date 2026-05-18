@@ -17,3 +17,22 @@ interface PeriodicSyncManager {
 interface ServiceWorkerRegistration {
   readonly periodicSync: PeriodicSyncManager;
 }
+
+// Web Speech API (supported in Chromium, Safari, Edge)
+interface SpeechRecognition extends EventTarget {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition;
+}
+
+declare var SpeechRecognition: SpeechRecognitionConstructor | undefined;
+declare var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined;

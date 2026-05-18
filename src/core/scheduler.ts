@@ -7,6 +7,7 @@
 import { getRecent, getMerchantHints } from './db/client';
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
+import { processAutoLogRules } from './recurring';
 
 export interface Suggestion {
   id: string;
@@ -40,6 +41,9 @@ function emit(s: Suggestion): void {
 
 export async function tick(): Promise<void> {
   try {
+    // First: process auto-log rules for strongly recurring patterns
+    await processAutoLogRules();
+
     const recent = await getRecent(50);
     const groups = new Map<string, { amounts: number[]; merchant: string | null }>();
     for (const t of recent) {

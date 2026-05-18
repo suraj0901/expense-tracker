@@ -14,6 +14,9 @@ import { initializeDatabase } from './core/db/client';
 import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
 import { insertTransaction } from './core/db/client';
 import { rupeesToPaise } from './core/domain/money';
+import { parseSharedText } from './core/share-target';
+import { useDraftStore } from './features/drafts/drafts.store';
+import { upsertRuleFromSuggestion } from './core/recurring';
 import { nanoid } from 'nanoid';
 import { format } from 'date-fns';
 
@@ -50,6 +53,20 @@ export default function App() {
   useEffect(() => {
     initApp();
   }, [initApp]);
+
+  // Handle incoming Web Share Target data (SMS/bank shares)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedText = params.get('text');
+    if (!sharedText) return;
+
+    const draft = parseSharedText(sharedText);
+    if (draft) {
+      useDraftStore.getState().add(draft);
+    }
+    // Clean URL params without reload
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   // PWA install prompt
   useEffect(() => {
@@ -101,6 +118,7 @@ export default function App() {
           dismissSuggestion(suggestion.id);
         }
         if (action === 'log' && suggestion) {
+          upsertRuleFromSuggestion(suggestion);
           const today = format(new Date(), 'yyyy-MM-dd');
           insertTransaction({
             id: nanoid(),

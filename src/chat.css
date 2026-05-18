@@ -481,3 +481,80 @@
 .txn-time {
   margin-left: auto; font-size: 0.64rem; color: var(--color-text-muted);
 }
+
+/* ─── Draft Banner ────────────────────────────────────────────────────── */
+
+.draft-banner {
+  margin: 8px 16px; padding: 12px 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.draft-banner-header {
+  font-size: 0.72rem; font-weight: 600; color: var(--color-accent);
+  margin-bottom: 8px;
+}
+
+.draft-item {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.draft-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+.draft-summary {
+  font-size: 0.84rem; font-weight: 600; color: var(--color-text-primary);
+}
+
+.draft-text {
+  font-size: 0.7rem; color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+.draft-actions {
+  display: flex; align-items: center; gap: 8px; margin-top: 4px;
+}
+
+.draft-btn {
+  border: none; cursor: pointer; font-size: 0.74rem; font-weight: 600;
+  padding: 5px 14px; border-radius: var(--radius-full);
+  font-family: var(--font-sans); transition: all 0.15s ease;
+  min-height: 36px;
+}
+
+.draft-btn.log {
+  background: var(--color-accent); color: var(--color-text-inverse);
+}
+
+.draft-btn.log:hover { background: var(--color-accent-hover); }
+
+.draft-btn.dismiss {
+  background: none; color: var(--color-text-muted);
+  padding: 5px 8px; font-size: 0.85rem;
+}
+
+.draft-btn.dismiss:hover { color: var(--color-text-primary); }
+
+/* ─── Voice Input ──────────────────────────────────────────────────────── */
+
+.voice-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: var(--radius-full);
+  background: var(--color-bg-card); border: 1px solid var(--color-border-subtle);
+  cursor: pointer; font-size: 1.1rem; transition: all 0.2s ease;
+  flex-shrink: 0; line-height: 1;
+}
+
+.voice-btn:hover:not(:disabled) {
+  border-color: var(--color-accent); background: var(--color-accent-muted);
+}
+
+.voice-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.voice-btn.listening {
+  background: rgba(248, 113, 113, 0.15); border-color: rgba(248, 113, 113, 0.4);
+  animation: pulse 1.5s infinite;
+}

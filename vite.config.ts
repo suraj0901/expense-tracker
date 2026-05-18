@@ -22,6 +22,15 @@ export default defineConfig({
         orientation: 'portrait-primary',
         theme_color: '#0a0a0f',
         background_color: '#0a0a0f',
+        share_target: {
+          action: '/',
+          method: 'GET',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
         icons: [
           {
             src: '/favicon.svg',

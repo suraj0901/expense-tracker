@@ -10,6 +10,10 @@ import { SuggestionStrip } from './SuggestionStrip';
 import { DateSeparator, dateKey } from './DateSeparator';
 import { EmptyState } from './EmptyState';
 import { onSuggestion, type Suggestion } from '../../core/scheduler';
+import { DraftBanner } from '../drafts/DraftBanner';
+import { useDraftStore } from '../drafts/drafts.store';
+import type { DraftItem } from '../drafts/types';
+import { VoiceInput } from './VoiceInput';
 
 export function ChatView() {
   const {
@@ -52,6 +56,21 @@ export function ChatView() {
     }
   };
 
+  const handleDraftLog = async (draft: DraftItem) => {
+    if (!provider) return;
+    const message = draft.amount
+      ? `${draft.text}\n[Auto-parsed: ₹${draft.amount}${draft.merchant ? ` at ${draft.merchant}` : ''}]`
+      : draft.text;
+    setInput(message);
+    useDraftStore.getState().remove(draft.id);
+    await sendMessage(provider);
+    triggerRefresh();
+  };
+
+  const handleDraftDismiss = (id: string) => {
+    useDraftStore.getState().remove(id);
+  };
+
   const handleSuggestionClear = useCallback(() => setSuggestion(null), []);
 
   const isConfigured = provider?.isConfigured() ?? false;
@@ -68,6 +87,8 @@ export function ChatView() {
         onClear={handleSuggestionClear}
         onLogged={triggerRefresh}
       />
+
+      <DraftBanner onLog={handleDraftLog} onDismiss={handleDraftDismiss} />
 
       {!isConfigured && (
         <div className="setup-banner">
@@ -143,6 +164,7 @@ export function ChatView() {
             rows={1}
             disabled={!isConfigured || isSending}
           />
+          <VoiceInput onTranscript={setInput} disabled={!isConfigured || isSending} />
           <button
             className={`send-button ${isSending ? 'sending' : ''}`}
             onClick={handleSend}

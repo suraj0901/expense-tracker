@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { format, subMonths, addMonths, differenceInDays } from 'date-fns';
+import { ChevronLeft, ChevronRight, Target, Sparkles, BarChart3 } from 'lucide-react';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 import * as db from '../../core/db/client';
@@ -15,6 +16,7 @@ import type { Goal } from '../../core/db/client';
 import { logger } from '../../core/logger';
 import { useSettingsStore } from '../settings/settings.store';
 import { generateInsight } from './insights';
+import { getCategoryIcon } from '../chat/categoryIcons';
 
 const CHART_COLORS = [
   '#818cf8', '#f472b6', '#34d399', '#fbbf24',
@@ -89,7 +91,6 @@ export function DashboardView() {
   useEffect(() => {
     if (!summary || !provider || !budgetStatus) return;
 
-    // Capture non-null values so TS narrows them across the async boundary
     const s = summary;
     const ps = previousSummary;
     const g = goals;
@@ -179,13 +180,13 @@ export function DashboardView() {
         <div className="summary-cards">
           {[1, 2, 3].map((i) => (
             <div key={i} className="summary-card">
-              <div className="skeleton" style={{ width: '60px', height: '12px', marginBottom: '8px' }} />
-              <div className="skeleton" style={{ width: '80px', height: '20px' }} />
+              <div className="skeleton" style={{ width: '48px', height: '10px', marginBottom: '8px' }} />
+              <div className="skeleton" style={{ width: '64px', height: '18px' }} />
             </div>
           ))}
         </div>
         <div className="chart-card">
-          <div className="skeleton" style={{ width: '100%', height: '200px' }} />
+          <div className="skeleton" style={{ width: '100%', height: '180px' }} />
         </div>
       </div>
     );
@@ -198,9 +199,13 @@ export function DashboardView() {
       <div className="dashboard-header">
         <h1>Dashboard</h1>
         <div className="month-selector">
-          <button onClick={goToPrevMonth}>←</button>
+          <button onClick={goToPrevMonth} aria-label="Previous month">
+            <ChevronLeft className="month-chevron" />
+          </button>
           <span>{monthLabel}</span>
-          <button onClick={goToNextMonth}>→</button>
+          <button onClick={goToNextMonth} aria-label="Next month">
+            <ChevronRight className="month-chevron" />
+          </button>
         </div>
       </div>
 
@@ -221,7 +226,7 @@ export function DashboardView() {
 
       {goals.length > 0 && (
         <div className="goals-section">
-          <h3>🎯 Goals</h3>
+          <h3><Target className="goals-icon" /> Goals</h3>
           <div className="goals-list">
             {goals.map((goal) => {
               const progress = goal.targetAmount > 0
@@ -237,7 +242,7 @@ export function DashboardView() {
                     <span className="goal-name">
                       {goal.category ? `${goal.category} — ` : ''}{goal.name}
                     </span>
-                    {isComplete && <span className="goal-badge">Done!</span>}
+                    {isComplete && <span className="goal-badge">Done</span>}
                   </div>
                   <div className="goal-progress-bar">
                     <div
@@ -264,17 +269,19 @@ export function DashboardView() {
       {hasData ? (
         <>
           <div className="insight-card">
-            <h3>{insight ? '✨ Monthly Insight' : 'Month Summary'}</h3>
+            <h3>
+              {insight ? <Sparkles className="insight-icon" /> : null}
+              {insight ? 'Monthly Insight' : 'Month Summary'}
+            </h3>
             {insightLoading ? (
-              <p className="skeleton" style={{ width: '100%', height: '40px' }} />
+              <div className="skeleton" style={{ width: '100%', height: '40px' }} />
             ) : insight ? (
               <p>{insight}</p>
             ) : (
               <p>
                 You saved {summary.savingsRate.toFixed(0)}% of your income this month.
                 {summary.categoryBreakdown.length > 0 && (
-                  <> Top spending category: {summary.categoryBreakdown[0].icon}{' '}
-                  {summary.categoryBreakdown[0].category} ({formatINR(summary.categoryBreakdown[0].total)}).</>
+                  <> Top spending category: {summary.categoryBreakdown[0].category} ({formatINR(summary.categoryBreakdown[0].total)}).</>
                 )}
               </p>
             )}
@@ -352,34 +359,37 @@ export function DashboardView() {
           <div className="chart-card">
             <h3>Category Breakdown</h3>
             <div className="category-list">
-              {summary.categoryBreakdown.map((cat, i) => (
-                <div key={cat.category} className="category-item">
-                  <span className="cat-icon">{cat.icon}</span>
-                  <div className="cat-info">
-                    <div className="cat-name">{cat.category}</div>
-                    <div className="cat-count">{cat.count} transaction{cat.count !== 1 ? 's' : ''}</div>
-                    <div className="progress-bar">
-                      <div
-                        className="fill"
-                        style={{
-                          width: `${cat.percentage}%`,
-                          background: CHART_COLORS[i % CHART_COLORS.length],
-                        }}
-                      />
+              {summary.categoryBreakdown.map((cat, i) => {
+                const CatIcon = getCategoryIcon(cat.category);
+                return (
+                  <div key={cat.category} className="category-item">
+                    <CatIcon className="cat-icon" />
+                    <div className="cat-info">
+                      <div className="cat-name">{cat.category}</div>
+                      <div className="cat-count">{cat.count} transaction{cat.count !== 1 ? 's' : ''}</div>
+                      <div className="progress-bar">
+                        <div
+                          className="fill"
+                          style={{
+                            width: `${cat.percentage}%`,
+                            background: CHART_COLORS[i % CHART_COLORS.length],
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="cat-amount">{formatINR(cat.total)}</div>
+                      <div className="cat-percentage">{cat.percentage.toFixed(1)}%</div>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="cat-amount">{formatINR(cat.total)}</div>
-                    <div className="cat-percentage">{cat.percentage.toFixed(1)}%</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </>
       ) : (
         <div className="empty-state">
-          <div className="icon">📊</div>
+          <BarChart3 className="icon" />
           <h3>No data for {monthLabel}</h3>
           <p>Start logging expenses in the chat to see your spending breakdown here.</p>
         </div>

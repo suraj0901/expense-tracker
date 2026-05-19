@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { Mic, MicOff, AlertTriangle } from 'lucide-react';
 
 interface Props {
   onTranscript: (text: string) => void;
@@ -53,12 +54,6 @@ export function VoiceInput({ onTranscript, disabled }: Props) {
 
   if (!isSupported) return null;
 
-  const label: Record<State, string> = {
-    idle: '🎤',
-    listening: '🔴',
-    error: '⚠️',
-  };
-
   return (
     <button
       type="button"
@@ -68,7 +63,9 @@ export function VoiceInput({ onTranscript, disabled }: Props) {
       title={state === 'listening' ? 'Listening...' : 'Voice input'}
       aria-label="Voice input"
     >
-      {label[state]}
+      {state === 'idle' && <Mic className="mic-icon" />}
+      {state === 'listening' && <MicOff className="mic-icon" />}
+      {state === 'error' && <AlertTriangle className="mic-icon" />}
     </button>
   );
 }

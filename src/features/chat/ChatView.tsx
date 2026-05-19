@@ -2,6 +2,7 @@
  * ChatView — SmartHeader + SuggestionStrip + message feed + input.
  */
 import { useEffect, useRef, useState, useCallback, Fragment } from 'react';
+import { ArrowUp, Loader2, AlertTriangle, Key, X } from 'lucide-react';
 import { useChatStore } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
 import { MessageBubble } from './MessageBubble';
@@ -92,21 +93,20 @@ export function ChatView() {
 
       {!isConfigured && (
         <div className="setup-banner">
-          <span>🔑</span>
+          <Key size={18} />
           <span>
             Add your API key in{' '}
-            <a href="#" onClick={(e) => { e.preventDefault(); window.location.hash = '/settings'; }}>
-              Settings
-            </a>{' '}
-            to start chatting
+            <a href="#/settings">Settings</a>
+            {' '}to start chatting
           </span>
         </div>
       )}
 
       {error && (
         <div className="error-banner">
-          <span>⚠️ {error}</span>
-          <button onClick={clearError}>✕</button>
+          <AlertTriangle size={16} />
+          <span>{error}</span>
+          <button onClick={clearError}><X size={16} /></button>
         </div>
       )}
 
@@ -170,7 +170,7 @@ export function ChatView() {
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending || !isConfigured}
           >
-            {isSending ? '⏳' : '↑'}
+            {isSending ? <Loader2 className="send-icon" style={{ animation: 'spin 1s linear infinite' }} /> : <ArrowUp className="send-icon" />}
           </button>
         </div>
       </div>

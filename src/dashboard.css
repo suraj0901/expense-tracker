@@ -1,7 +1,7 @@
 /* ─── Dashboard ───────────────────────────────────────────────────────── */
 
 .dashboard-container {
-  padding: 20px 16px; display: flex; flex-direction: column; gap: 20px;
+  padding: 16px; display: flex; flex-direction: column; gap: 16px;
   height: 100%; overflow-y: auto; overflow-x: hidden;
 }
 
@@ -9,49 +9,29 @@
   display: flex; align-items: center; justify-content: space-between;
 }
 
-.dashboard-header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+.dashboard-header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
 
-.month-selector { display: flex; align-items: center; gap: 8px; }
+.month-selector { display: flex; align-items: center; gap: 4px; }
 
 .month-selector button {
   display: flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: var(--radius-full);
+  width: 32px; height: 32px; border-radius: var(--radius-full);
   background: var(--color-bg-card); border: 1px solid var(--color-border);
   color: var(--color-text-secondary); cursor: pointer;
-  font-size: 0.8rem; transition: all 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .month-selector button:hover {
-  background: var(--color-bg-hover); border-color: var(--color-accent);
+  border-color: var(--color-accent); color: var(--color-accent-text);
 }
+
+.month-selector button:active { transform: scale(0.93); }
+
+.month-selector .month-chevron { width: 16px; height: 16px; }
 
 .month-selector span {
-  font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary);
-  min-width: 100px; text-align: center;
-}
-
-/* ─── Compare Toggle ─────────────────────────────────────────────────── */
-
-.compare-toggle-row {
-  display: flex; align-items: center; justify-content: space-between;
-}
-
-.compare-toggle-row h3 {
-  font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary);
-}
-
-.compare-toggle {
-  padding: 5px 14px; border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-card); color: var(--color-text-secondary);
-  font-size: 0.72rem; font-weight: 500; cursor: pointer;
-  font-family: var(--font-sans); transition: all 0.15s ease;
-}
-
-.compare-toggle:hover { border-color: var(--color-accent); }
-.compare-toggle.active {
-  background: var(--color-accent-muted); border-color: rgba(16, 185, 129, 0.3);
-  color: var(--color-accent-text);
+  font-size: 0.8125rem; font-weight: 600; color: var(--color-text-secondary);
+  min-width: 96px; text-align: center;
 }
 
 /* ─── Summary Cards ───────────────────────────────────────────────────── */
@@ -61,39 +41,60 @@
 .summary-card {
   padding: 14px 12px; background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
-  backdrop-filter: blur(10px);
 }
 
 .summary-card .label {
-  font-size: 0.65rem; color: var(--color-text-muted);
+  font-size: 0.625rem; color: var(--color-text-muted);
   text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
 }
 
 .summary-card .amount {
-  font-size: 1.05rem; font-weight: 700; margin-top: 4px;
-  letter-spacing: -0.02em;
+  font-size: 1rem; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em;
 }
 
 .summary-card.income .amount { color: var(--color-income); }
 .summary-card.expense .amount { color: var(--color-expense); }
 .summary-card.savings .amount { color: var(--color-accent-text); }
 
+/* ─── Compare Toggle ────────────────────────────────────────────────── */
+
+.compare-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.compare-toggle-row h3 {
+  font-size: 0.8125rem; font-weight: 600;
+}
+
+.compare-toggle {
+  padding: 5px 14px; border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card); color: var(--color-text-secondary);
+  font-size: 0.6875rem; font-weight: 500; cursor: pointer;
+  font-family: var(--font-sans); transition: all 0.15s ease;
+}
+
+.compare-toggle:hover { border-color: var(--color-accent); }
+.compare-toggle.active {
+  background: var(--color-accent-muted); border-color: rgba(16, 185, 129, 0.3);
+  color: var(--color-accent-text);
+}
+
 /* ─── Charts ──────────────────────────────────────────────────────────── */
 
 .chart-card {
   padding: 16px; background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg);
-  backdrop-filter: blur(10px);
 }
 
 .chart-card h3 {
-  font-size: 0.85rem; font-weight: 600; margin-bottom: 16px;
+  font-size: 0.8125rem; font-weight: 600; margin-bottom: 16px;
   color: var(--color-text-secondary);
 }
 
-/* ─── Category List ──────────────────────────────────────────────────���── */
+/* ─── Category List ───────────────────────────────────────────────────── */
 
-.category-list { display: flex; flex-direction: column; gap: 8px; }
+.category-list { display: flex; flex-direction: column; gap: 6px; }
 
 .category-item {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px;
@@ -101,12 +102,14 @@
   border-radius: var(--radius-md);
 }
 
-.category-item .cat-icon { font-size: 1.3rem; }
+.category-item .cat-icon { width: 20px; height: 20px; flex-shrink: 0; }
 .category-item .cat-info { flex: 1; min-width: 0; }
-.category-item .cat-name { font-size: 0.82rem; font-weight: 500; color: var(--color-text-primary); }
-.category-item .cat-count { font-size: 0.7rem; color: var(--color-text-muted); }
-.category-item .cat-amount { font-size: 0.88rem; font-weight: 600; color: var(--color-text-primary); }
-.category-item .cat-percentage { font-size: 0.65rem; color: var(--color-text-muted); text-align: right; }
+.category-item .cat-name { font-size: 0.8125rem; font-weight: 500; }
+.category-item .cat-count { font-size: 0.6875rem; color: var(--color-text-muted); }
+.category-item .cat-amount { font-size: 0.875rem; font-weight: 600; }
+.category-item .cat-percentage {
+  font-size: 0.625rem; color: var(--color-text-muted); text-align: right;
+}
 
 .progress-bar {
   height: 3px; background: var(--color-border-subtle);
@@ -114,7 +117,7 @@
 }
 
 .progress-bar .fill {
-  height: 100%; border-radius: var(--radius-full); transition: width 0.5s ease;
+  height: 100%; border-radius: var(--radius-full); transition: width 0.4s ease;
 }
 
 /* ─── Insight Card ────────────────────────────────────────────────────── */
@@ -122,23 +125,88 @@
 .insight-card {
   padding: 16px;
   background: linear-gradient(135deg, var(--color-accent-muted) 0%, var(--color-bg-card) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.15); border-radius: var(--radius-lg);
+  border: 1px solid rgba(16, 185, 129, 0.12); border-radius: var(--radius-lg);
 }
 
 .insight-card h3 {
-  font-size: 0.78rem; font-weight: 600; color: var(--color-accent-text);
+  font-size: 0.75rem; font-weight: 600; color: var(--color-accent-text);
   margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
 }
 
-.insight-card p { font-size: 0.82rem; color: var(--color-text-secondary); line-height: 1.6; }
+.insight-card p { font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.55; }
+
+.insight-card .insight-icon { width: 16px; height: 16px; }
+
+/* ─── Goals ────────────────────────────────────────────────────────────── */
+
+.goals-section {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.goals-section h3 {
+  font-size: 0.8125rem; font-weight: 600; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.goals-section .goals-icon { width: 16px; height: 16px; }
+
+.goals-list { display: flex; flex-direction: column; gap: 10px; }
+
+.goal-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+
+.goal-card.complete {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.05);
+}
+
+.goal-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.goal-name { font-size: 0.8125rem; font-weight: 600; }
+
+.goal-badge {
+  font-size: 0.625rem; font-weight: 600; padding: 2px 8px;
+  border-radius: var(--radius-full); background: var(--color-income);
+  color: var(--color-text-inverse);
+}
+
+.goal-progress-bar {
+  height: 6px; border-radius: 3px;
+  background: var(--color-bg-tertiary); overflow: hidden;
+}
+
+.goal-progress-fill {
+  height: 100%; background: var(--color-accent);
+  border-radius: 3px; transition: width 0.4s ease;
+}
+
+.goal-card.complete .goal-progress-fill { background: var(--color-income); }
+
+.goal-meta {
+  display: flex; justify-content: space-between;
+  font-size: 0.75rem; color: var(--color-text-secondary);
+}
+
+.goal-percent { font-weight: 600; color: var(--color-accent); }
+
+.goal-deadline {
+  font-size: 0.6875rem; color: var(--color-text-muted);
+}
 
 /* ─── Empty State ─────────────────────────────────────────────────────── */
 
 .empty-state {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; padding: 48px 24px; text-align: center; gap: 12px;
+  flex: 1;
 }
 
-.empty-state .icon { font-size: 2.5rem; opacity: 0.5; }
+.empty-state .icon { width: 48px; height: 48px; opacity: 0.35; color: var(--color-text-muted); }
 .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--color-text-secondary); }
-.empty-state p { font-size: 0.8rem; color: var(--color-text-muted); max-width: 250px; }
+.empty-state p { font-size: 0.75rem; color: var(--color-text-muted); max-width: 240px; }

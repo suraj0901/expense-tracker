@@ -3,6 +3,7 @@
  */
 
 import { format } from 'date-fns';
+import { Zap } from 'lucide-react';
 import type { Message } from '../../core/domain/types';
 
 interface MessageBubbleProps {
@@ -22,7 +23,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             <div className="message-tools">
               {message.toolCalls.map((tc, i) => (
                 <span key={i} className="tool-badge">
-                  ⚡ {tc.name.replace(/_/g, ' ')}
+                  <Zap size={10} /> {tc.name.replace(/_/g, ' ')}
                 </span>
               ))}
             </div>

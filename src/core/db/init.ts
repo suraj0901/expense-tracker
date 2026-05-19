@@ -6,14 +6,47 @@ import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { nanoid } from 'nanoid';
 import * as schema from './schema';
 import { DEFAULT_CATEGORIES } from '../domain/types';
+import { logger } from '../logger';
 
-const sqlocal = new SQLocalDrizzle('expense-tracker.sqlite3');
-export const db = drizzle(sqlocal.driver, { schema });
+let sqlocal: SQLocalDrizzle;
+export let db: ReturnType<typeof drizzle>;
 
 let initialized = false;
 
+export interface StorageInfo {
+  persisted: boolean;
+  usageBytes: number;
+  quotaBytes: number;
+  pctUsed: number;
+}
+
+let cachedStorageInfo: StorageInfo | null = null;
+
+export function getStorageInfo(): StorageInfo | null {
+  return cachedStorageInfo;
+}
+
 export async function initializeDatabase(): Promise<void> {
   if (initialized) return;
+
+  sqlocal = new SQLocalDrizzle('expense-tracker.sqlite3');
+  db = drizzle(sqlocal.driver, { schema });
+
+  if ('storage' in navigator) {
+    const persisted = await navigator.storage.persist();
+    const estimate = await navigator.storage.estimate();
+    const usageBytes = estimate.usage ?? 0;
+    const quotaBytes = estimate.quota ?? 0;
+    const pctUsed = quotaBytes > 0 ? Math.round((usageBytes / quotaBytes) * 100) : 0;
+    cachedStorageInfo = { persisted, usageBytes, quotaBytes, pctUsed };
+    logger.info('storage_init', {
+      persisted,
+      usage_mb: Math.round(usageBytes / 1024 / 1024),
+      quota_mb: Math.round(quotaBytes / 1024 / 1024),
+      pct_used: pctUsed,
+    });
+  }
+
   await sqlocal.sql`
     CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, icon TEXT,

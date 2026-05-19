@@ -6,6 +6,7 @@
  * Dismiss → removes from queue.
  */
 
+import { Inbox, X } from 'lucide-react';
 import { useDraftStore } from './drafts.store';
 import type { DraftItem } from './types';
 
@@ -30,7 +31,8 @@ export function DraftBanner({
   return (
     <div className="draft-banner">
       <div className="draft-banner-header">
-        <span>📩 {drafts.length} draft{drafts.length > 1 ? 's' : ''} ready</span>
+        <Inbox size={14} />
+        <span>{drafts.length} draft{drafts.length > 1 ? 's' : ''} ready</span>
       </div>
       {drafts.map((d) => (
         <div key={d.id} className="draft-item">
@@ -38,7 +40,9 @@ export function DraftBanner({
           <span className="draft-text">{d.text.slice(0, 80)}{d.text.length > 80 ? '…' : ''}</span>
           <div className="draft-actions">
             <button className="draft-btn log" onClick={() => onLog(d)}>Log it</button>
-            <button className="draft-btn dismiss" onClick={() => onDismiss(d.id)}>✕</button>
+            <button className="draft-btn dismiss" onClick={() => onDismiss(d.id)}>
+              <X size={14} />
+            </button>
           </div>
         </div>
       ))}

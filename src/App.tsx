@@ -6,11 +6,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { MessageCircle, BarChart3, Settings } from 'lucide-react';
 import { ChatView } from './features/chat/ChatView';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
 import { useSettingsStore } from './features/settings/settings.store';
-import { initializeDatabase } from './core/db/client';
+import { initializeDatabase, getStorageInfo } from './core/db/client';
+import type { StorageInfo } from './core/db/client';
 import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
 import { insertTransaction } from './core/db/client';
 import { rupeesToPaise } from './core/domain/money';
@@ -33,6 +35,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>(getRouteFromHash);
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const { initialize: initSettings } = useSettingsStore();
 
@@ -40,6 +43,8 @@ export default function App() {
     try {
       await initializeDatabase();
       initSettings();
+      const info = getStorageInfo();
+      if (info) setStorageInfo(info);
       setDbReady(true);
       startScheduler();
     } catch (error) {
@@ -193,7 +198,7 @@ export default function App() {
     return (
       <div className="app-container">
         <div className="chat-empty" style={{ height: '100dvh' }}>
-          <div className="empty-icon">⚠️</div>
+          <div className="empty-icon" style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⚠️</div>
           <h2>Database Error</h2>
           <p>{dbError}</p>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '8px' }}>
@@ -224,6 +229,14 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {storageInfo && (storageInfo.pctUsed > 90 || !storageInfo.persisted) && (
+        <div className="storage-warning-banner">
+          {!storageInfo.persisted
+            ? 'Storage is not persistent — data may be lost if device runs low on space.'
+            : `Storage ${storageInfo.pctUsed}% full — free up space to avoid data loss.`}
+        </div>
+      )}
+
       {installPrompt && (
         <div className="install-banner">
           <span>Install this app for quick access</span>
@@ -235,9 +248,11 @@ export default function App() {
       )}
 
       <div className="app-content">
-        {route === 'chat' && <ChatView />}
-        {route === 'dashboard' && <DashboardView />}
-        {route === 'settings' && <SettingsView />}
+        <div key={route} className="page-enter">
+          {route === 'chat' && <ChatView />}
+          {route === 'dashboard' && <DashboardView />}
+          {route === 'settings' && <SettingsView />}
+        </div>
       </div>
 
       <nav className="bottom-nav">
@@ -245,21 +260,21 @@ export default function App() {
           className={`nav-item ${route === 'chat' ? 'active' : ''}`}
           onClick={() => navigate('chat')}
         >
-          <span className="nav-icon">💬</span>
+          <MessageCircle className="nav-icon" />
           Chat
         </button>
         <button
           className={`nav-item ${route === 'dashboard' ? 'active' : ''}`}
           onClick={() => navigate('dashboard')}
         >
-          <span className="nav-icon">📊</span>
+          <BarChart3 className="nav-icon" />
           Dashboard
         </button>
         <button
           className={`nav-item ${route === 'settings' ? 'active' : ''}`}
           onClick={() => navigate('settings')}
         >
-          <span className="nav-icon">⚙️</span>
+          <Settings className="nav-icon" />
           Settings
         </button>
       </nav>

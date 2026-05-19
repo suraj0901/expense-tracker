@@ -2,6 +2,7 @@
  * EmptyState — capability showcase when no messages exist.
  * Renders faded example bubbles and one-tap action chips.
  */
+import { Coffee, Car, ShoppingCart } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { insertTransaction } from '../../core/db/client';
 import { rupeesToPaise } from '../../core/domain/money';
@@ -16,9 +17,9 @@ const EXAMPLES = [
 ];
 
 const QUICK_ACTIONS = [
-  { label: '☕ Chai ₹15', category: 'Food', amount: 15 },
-  { label: '🚗 Auto ₹25', category: 'Transport', amount: 25 },
-  { label: '🛒 Groceries ₹500', category: 'Groceries', amount: 500 },
+  { label: 'Chai ₹15', category: 'Food', amount: 15, Icon: Coffee },
+  { label: 'Auto ₹25', category: 'Transport', amount: 25, Icon: Car },
+  { label: 'Groceries ₹500', category: 'Groceries', amount: 500, Icon: ShoppingCart },
 ];
 
 export function EmptyState({ onQuickLog }: EmptyStateProps) {
@@ -59,6 +60,7 @@ export function EmptyState({ onQuickLog }: EmptyStateProps) {
             className="empty-action-chip"
             onClick={() => handleQuickAction(action.category, action.amount)}
           >
+            <action.Icon size={16} />
             {action.label}
           </button>
         ))}

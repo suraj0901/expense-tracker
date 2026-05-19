@@ -2,12 +2,13 @@
  * SuggestionStrip — horizontal scrollable chips for one-tap logging.
  */
 import { useState, useRef, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { insertTransaction } from '../../core/db/client';
 import { rupeesToPaise } from '../../core/domain/money';
-import { DEFAULT_CATEGORIES } from '../../core/domain/types';
 import { dismissSuggestion, type Suggestion } from '../../core/scheduler';
 import { CategoryPicker } from './CategoryPicker';
+import { getCategoryIcon } from './categoryIcons';
 
 interface SuggestionStripProps {
   suggestion: Suggestion | null;
@@ -45,7 +46,6 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
 
   const handleQuickAdd = useCallback(async (category: string) => {
     setQuickAddOpen(false);
-    // Quick-add: log a ₹0 placeholder that user can edit later via chat
     const id = nanoid();
     const today = new Date().toISOString().slice(0, 10);
     await insertTransaction({
@@ -76,8 +76,8 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
 
   if (!suggestion) return null;
 
-  const icon = suggestion.category
-    ? DEFAULT_CATEGORIES.find((c) => c.name === suggestion.category)?.icon ?? '📦'
+  const CategoryIcon = suggestion.category
+    ? getCategoryIcon(suggestion.category)
     : null;
 
   return (
@@ -96,10 +96,10 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
                 <span className="chip-spinner" />
               ) : (
                 <>
-                  {icon && <span className="chip-icon">{icon}</span>}
+                  {CategoryIcon && <CategoryIcon className="chip-icon" />}
                   <span className="chip-label">
-                    {icon && suggestion.typicalAmount
-                      ? `₹${suggestion.typicalAmount} ${suggestion.category}`
+                    {suggestion.typicalAmount
+                      ? `₹${suggestion.typicalAmount} ${suggestion.category ?? ''}`
                       : suggestion.text}
                   </span>
                 </>
@@ -107,7 +107,7 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
             </button>
           )}
           <button className="suggestion-chip-add" onClick={() => setQuickAddOpen(true)}>
-            <span className="chip-icon">+</span>
+            <Plus className="chip-icon" />
             <span className="chip-label">Add</span>
           </button>
         </div>

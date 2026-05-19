@@ -26,7 +26,9 @@ export function ChatView() {
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
@@ -35,7 +37,19 @@ export function ChatView() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = chatMessagesRef.current;
+    if (!container) return;
+
+    if (initialLoadRef.current) {
+      container.scrollTop = container.scrollHeight;
+      initialLoadRef.current = false;
+      return;
+    }
+
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom < 100) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, isSending]);
 
   const triggerRefresh = useCallback(() => {
@@ -110,7 +124,7 @@ export function ChatView() {
         </div>
       )}
 
-      <div className="chat-messages">
+      <div className="chat-messages" ref={chatMessagesRef}>
         {isLoading ? (
           <div className="chat-empty">
             <div className="typing-indicator">

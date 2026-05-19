@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, BarChart3, Settings } from 'lucide-react';
+import { MessageCircle, BarChart3, Settings, AlertTriangle, X } from 'lucide-react';
 import { ChatView } from './features/chat/ChatView';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
@@ -198,7 +198,7 @@ export default function App() {
     return (
       <div className="app-container">
         <div className="chat-empty" style={{ height: '100dvh' }}>
-          <div className="empty-icon" style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⚠️</div>
+          <AlertTriangle size={40} style={{ marginBottom: '8px', color: 'var(--color-warning)' }} />
           <h2>Database Error</h2>
           <p>{dbError}</p>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '8px' }}>
@@ -242,7 +242,7 @@ export default function App() {
           <span>Install this app for quick access</span>
           <div className="install-banner-actions">
             <button className="install-btn" onClick={handleInstall}>Install</button>
-            <button className="install-dismiss" onClick={() => setInstallPrompt(null)}>✕</button>
+            <button className="install-dismiss" onClick={() => setInstallPrompt(null)}><X size={16} /></button>
           </div>
         </div>
       )}

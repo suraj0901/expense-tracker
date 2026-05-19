@@ -22,6 +22,7 @@ const map: Record<string, LucideIcon> = {
   Other: Package,
 };
 
-export function getCategoryIcon(category: string): LucideIcon {
-  return map[category] ?? Package;
+export function CategoryIcon({ name, className, size }: { name: string; className?: string; size?: number }) {
+  const Icon = map[name] ?? Package;
+  return <Icon className={className} size={size} />;
 }

@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react';
+import { Settings } from 'lucide-react';
 import { useSettingsStore } from './settings.store';
 import type { ProviderType } from '../../core/providers/types';
 import { LocalAIProvider } from '../../core/providers/local';
@@ -43,7 +44,10 @@ export function SettingsView() {
 
   return (
     <div className="settings-container fade-in">
-      <h1>⚙️ Settings</h1>
+      <div className="settings-header">
+        <Settings className="settings-header-icon" />
+        <h1>Settings</h1>
+      </div>
 
       <div className="settings-section">
         <h2>AI Provider</h2>
@@ -62,7 +66,7 @@ export function SettingsView() {
           <span
             className={`provider-status ${settings.anthropicApiKey ? 'configured' : 'missing'}`}
           >
-            {settings.anthropicApiKey ? '✓ Ready' : 'No key'}
+            {settings.anthropicApiKey ? 'Ready' : 'No key'}
           </span>
         </div>
 
@@ -80,7 +84,7 @@ export function SettingsView() {
           <span
             className={`provider-status ${settings.geminiApiKey ? 'configured' : 'missing'}`}
           >
-            {settings.geminiApiKey ? '✓ Ready' : 'No key'}
+            {settings.geminiApiKey ? 'Ready' : 'No key'}
           </span>
         </div>
 
@@ -98,7 +102,7 @@ export function SettingsView() {
           <span
             className={`provider-status ${settings.deepseekApiKey ? 'configured' : 'missing'}`}
           >
-            {settings.deepseekApiKey ? '✓ Ready' : 'No key'}
+            {settings.deepseekApiKey ? 'Ready' : 'No key'}
           </span>
         </div>
 
@@ -257,7 +261,7 @@ export function SettingsView() {
 
       <div className="settings-section">
         <h2>About</h2>
-        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
+        <div className="about-text">
           <p>AI Expense Tracker — Agent-Centric MVP</p>
           <p>Your data stays on this device. API keys are stored in localStorage.</p>
           <p>AI calls go directly from your browser to the provider's API.</p>

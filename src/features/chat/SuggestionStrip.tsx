@@ -8,7 +8,7 @@ import { insertTransaction } from '../../core/db/client';
 import { rupeesToPaise } from '../../core/domain/money';
 import { dismissSuggestion, type Suggestion } from '../../core/scheduler';
 import { CategoryPicker } from './CategoryPicker';
-import { getCategoryIcon } from './categoryIcons';
+import { CategoryIcon } from './categoryIcons';
 
 interface SuggestionStripProps {
   suggestion: Suggestion | null;
@@ -76,10 +76,6 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
 
   if (!suggestion) return null;
 
-  const CategoryIcon = suggestion.category
-    ? getCategoryIcon(suggestion.category)
-    : null;
-
   return (
     <>
       <div className="suggestion-strip">
@@ -96,7 +92,7 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
                 <span className="chip-spinner" />
               ) : (
                 <>
-                  {CategoryIcon && <CategoryIcon className="chip-icon" />}
+                  {suggestion.category && <CategoryIcon name={suggestion.category} className="chip-icon" />}
                   <span className="chip-label">
                     {suggestion.typicalAmount
                       ? `₹${suggestion.typicalAmount} ${suggestion.category ?? ''}`

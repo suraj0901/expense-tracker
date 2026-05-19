@@ -16,7 +16,7 @@ import type { Goal } from '../../core/db/client';
 import { logger } from '../../core/logger';
 import { useSettingsStore } from '../settings/settings.store';
 import { generateInsight } from './insights';
-import { getCategoryIcon } from '../chat/categoryIcons';
+import { CategoryIcon } from '../chat/categoryIcons';
 
 const CHART_COLORS = [
   '#818cf8', '#f472b6', '#34d399', '#fbbf24',
@@ -359,11 +359,9 @@ export function DashboardView() {
           <div className="chart-card">
             <h3>Category Breakdown</h3>
             <div className="category-list">
-              {summary.categoryBreakdown.map((cat, i) => {
-                const CatIcon = getCategoryIcon(cat.category);
-                return (
+              {summary.categoryBreakdown.map((cat, i) => (
                   <div key={cat.category} className="category-item">
-                    <CatIcon className="cat-icon" />
+                    <CategoryIcon name={cat.category} className="cat-icon" />
                     <div className="cat-info">
                       <div className="cat-name">{cat.category}</div>
                       <div className="cat-count">{cat.count} transaction{cat.count !== 1 ? 's' : ''}</div>
@@ -382,8 +380,7 @@ export function DashboardView() {
                       <div className="cat-percentage">{cat.percentage.toFixed(1)}%</div>
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           </div>
         </>

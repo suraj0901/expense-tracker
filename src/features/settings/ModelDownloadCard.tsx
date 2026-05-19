@@ -5,6 +5,7 @@
  * the model before using it in chat.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { Check, ArrowDown, Download } from 'lucide-react';
 import type { LocalAIProvider } from '../../core/providers/local';
 import type { DownloadState } from '../../core/providers/local';
 
@@ -33,11 +34,15 @@ export function ModelDownloadCard({ provider }: Props) {
 
   const pct = Math.round(state.progress * 100);
 
+  const StatusIcon = state.status === 'ready' ? Check
+    : state.status === 'downloading' ? ArrowDown
+    : Download;
+
   return (
     <div className="model-download-card">
       <div className="model-download-header">
         <span className="model-download-icon">
-          {state.status === 'ready' ? '✓' : state.status === 'downloading' ? '↓' : '⬇'}
+          <StatusIcon size={18} />
         </span>
         <div className="model-download-info">
           <div className="model-download-title">Qwen 3.5 2B</div>

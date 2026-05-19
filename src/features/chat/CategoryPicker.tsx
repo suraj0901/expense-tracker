@@ -3,7 +3,7 @@
  */
 import { useEffect } from 'react';
 import { DEFAULT_CATEGORIES } from '../../core/domain/types';
-import { getCategoryIcon } from './categoryIcons';
+import { CategoryIcon } from './categoryIcons';
 
 interface CategoryPickerProps {
   open: boolean;
@@ -30,19 +30,16 @@ export function CategoryPicker({ open, selected, onSelect, onClose }: CategoryPi
         <div className="category-picker-handle" />
         <h3>Select Category</h3>
         <div className="category-picker-grid">
-          {DEFAULT_CATEGORIES.map((cat) => {
-            const Icon = getCategoryIcon(cat.name);
-            return (
-              <button
-                key={cat.name}
-                className={`category-picker-item ${selected === cat.name ? 'selected' : ''}`}
-                onClick={() => onSelect(cat.name)}
-              >
-                <Icon className="category-picker-icon" />
-                <span>{cat.name}</span>
-              </button>
-            );
-          })}
+          {DEFAULT_CATEGORIES.map((cat) => (
+            <button
+              key={cat.name}
+              className={`category-picker-item ${selected === cat.name ? 'selected' : ''}`}
+              onClick={() => onSelect(cat.name)}
+            >
+              <CategoryIcon name={cat.name} className="category-picker-icon" />
+              <span>{cat.name}</span>
+            </button>
+          ))}
         </div>
       </div>
     </div>

@@ -5,10 +5,14 @@
  * with the list of files to precache.
  */
 
+import { skipWaiting, clientsClaim } from 'workbox-core';
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
+
+skipWaiting();
+clientsClaim();
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
@@ -18,6 +22,17 @@ declare const self: ServiceWorkerGlobalScope & {
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Purge stale wasm-cache on activate — cached worker/WASM responses
+// from before COOP/COEP headers were configured will block worker creation.
+self.addEventListener('activate', ((event: ExtendableEvent) => {
+  event.waitUntil(
+    caches.delete('wasm-cache').then(() => {
+      // Deleting static-assets cache too since old CSS/JS may conflict
+      return caches.delete('static-assets');
+    }),
+  );
+}) as EventListener);
 
 // ─── Runtime caching ─────────────────────────────────────────────────
 
@@ -34,12 +49,15 @@ registerRoute(
   }),
 );
 
-// WASM files for SQLite — cache first, long-lived
+// WASM + worker files for SQLite — network first so headers (COOP/COEP)
+// are always fresh. A stale cached response without these headers will
+// block worker creation in cross-origin isolated contexts.
 registerRoute(
   ({ request }) => request.destination === 'worker'
     || request.url.endsWith('.wasm'),
-  new CacheFirst({
+  new NetworkFirst({
     cacheName: 'wasm-cache',
+    networkTimeoutSeconds: 5,
     plugins: [
       new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 90 * 24 * 60 * 60 }),
     ],

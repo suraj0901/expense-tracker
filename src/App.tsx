@@ -6,7 +6,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, BarChart3, Settings, AlertTriangle, X } from 'lucide-react';
+import { MessageCircle, BarChart3, Settings, AlertTriangle, X, RefreshCw } from 'lucide-react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { ChatView } from './features/chat/ChatView';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
@@ -37,6 +38,10 @@ export default function App() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW();
   const { initialize: initSettings } = useSettingsStore();
 
   const initApp = useCallback(async () => {
@@ -253,6 +258,25 @@ export default function App() {
           <div className="install-banner-actions">
             <button className="install-btn" onClick={handleInstall}>Install</button>
             <button className="install-dismiss" onClick={() => setInstallPrompt(null)}><X size={16} /></button>
+          </div>
+        </div>
+      )}
+
+      {needRefresh && (
+        <div className="install-banner" style={{ background: 'var(--color-accent)', color: '#fff' }}>
+          <RefreshCw size={16} />
+          <span>New version available</span>
+          <div className="install-banner-actions">
+            <button
+              className="install-btn"
+              style={{ background: '#fff', color: 'var(--color-accent)' }}
+              onClick={() => updateServiceWorker(true)}
+            >
+              Update
+            </button>
+            <button className="install-dismiss" onClick={() => setNeedRefresh(false)}>
+              <X size={16} style={{ color: '#fff' }} />
+            </button>
           </div>
         </div>
       )}

@@ -26,10 +26,11 @@ const MIME = {
   '.png': 'image/png',
   '.wasm': 'application/wasm',
   '.woff2': 'font/woff2',
+  '.webmanifest': 'application/manifest+json',
 };
 
 const COOP = 'same-origin';
-const COEP = 'require-corp';
+const COEP = 'credentialless';
 
 createServer(async (req, res) => {
   res.setHeader('Cross-Origin-Opener-Policy', COOP);

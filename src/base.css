@@ -238,6 +238,24 @@ a:active, .nav-item:active, .provider-card:active,
   flex-shrink: 0;
 }
 
+.storage-warning-critical {
+  background: #3b1010;
+  border-bottom: 2px solid #ef444488;
+  color: #fca5a5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.storage-warning-critical code {
+  background: #ffffff18;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
 .install-banner {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 16px; gap: 12px;

@@ -4,7 +4,7 @@
  * Queries the DB directly (no AI credits consumed). Detects repeated
  * patterns: same category + similar amount (±20%) appearing 3+ times.
  */
-import { getRecent, getMerchantHints } from './db/client';
+import { getRecent, getMerchantHints, autoBackup } from './db/client';
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import { processAutoLogRules } from './recurring';
@@ -21,9 +21,11 @@ export interface Suggestion {
 type Listener = (s: Suggestion) => void;
 let listeners: Listener[] = [];
 let intervalId: ReturnType<typeof setInterval> | null = null;
+let backupIntervalId: ReturnType<typeof setInterval> | null = null;
 let dismissedIds = new Set<string>();
 
 const INTERVAL_MS = 30 * 60 * 1000; // 30 min
+const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export function onSuggestion(fn: Listener): () => void {
   listeners.push(fn);
@@ -91,6 +93,9 @@ export function startScheduler(): void {
   if (intervalId) return;
   setTimeout(tick, 2 * 60 * 1000); // first run after 2 min
   intervalId = setInterval(tick, INTERVAL_MS);
+  // Daily backup — first run after 5 min, then every 24h
+  setTimeout(autoBackup, 5 * 60 * 1000);
+  backupIntervalId = setInterval(autoBackup, BACKUP_INTERVAL_MS);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') tick();
   });
@@ -98,4 +103,5 @@ export function startScheduler(): void {
 
 export function stopScheduler(): void {
   if (intervalId) { clearInterval(intervalId); intervalId = null; }
+  if (backupIntervalId) { clearInterval(backupIntervalId); backupIntervalId = null; }
 }

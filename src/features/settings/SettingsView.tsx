@@ -2,13 +2,14 @@
  * SettingsView — provider picker + API key input.
  */
 
-import { useState } from 'react';
-import { Settings } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Settings, Download, Upload, Trash2, RefreshCw } from 'lucide-react';
 import { useSettingsStore } from './settings.store';
 import type { ProviderType } from '../../core/providers/types';
 import { LocalAIProvider } from '../../core/providers/local';
 import { ModelDownloadCard } from './ModelDownloadCard';
 import { AutoLogRules } from './AutoLogRules';
+import type { StoredBackup } from '../../core/db/client';
 
 export function SettingsView() {
   const { settings, provider, setActiveProvider, setApiKey, clearApiKey, setWebLLMEnabled } =
@@ -17,6 +18,14 @@ export function SettingsView() {
   const [anthropicKeyInput, setAnthropicKeyInput] = useState('');
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [deepseekKeyInput, setDeepseekKeyInput] = useState('');
+  const [backups, setBackups] = useState<StoredBackup[]>([]);
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
+
+  const refreshBackups = useCallback(() => {
+    import('../../core/db/client').then((m) => setBackups(m.getStoredBackups()));
+  }, []);
+
+  useEffect(() => { refreshBackups(); }, [refreshBackups]);
 
   const handleSaveKey = (type: ProviderType) => {
     const keyMap: Record<ProviderType, string> = {
@@ -257,6 +266,91 @@ export function SettingsView() {
         <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
           All exports happen on-device. No data is sent anywhere.
         </p>
+      </div>
+
+      <div className="settings-section">
+        <h2>Backup & Restore</h2>
+        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
+          Full database backups include all transactions, chats, categories, and settings.
+          Auto-backups run daily and are stored in your browser's local storage (last 7 days).
+        </p>
+        <div className="export-buttons" style={{ marginBottom: '16px' }}>
+          <button className="btn btn-primary" onClick={() => {
+            import('../../core/db/client').then((m) => m.exportDatabase());
+          }}>
+            <Download size={14} style={{ marginRight: '4px' }} />
+            Backup Now
+          </button>
+          <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
+            <Upload size={14} style={{ marginRight: '4px' }} />
+            Restore from File
+            <input
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const { importDatabase } = await import('../../core/db/client');
+                const result = await importDatabase(file);
+                setRestoreMsg(result.success ? 'Restore complete. Reloading...' : `Restore failed: ${result.error}`);
+                if (result.success) {
+                  setTimeout(() => window.location.reload(), 1500);
+                }
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+
+        {restoreMsg && (
+          <div className={`restore-message ${restoreMsg.includes('failed') ? 'restore-error' : 'restore-success'}`}>
+            {restoreMsg}
+          </div>
+        )}
+
+        {backups.length > 0 && (
+          <>
+            <h3 style={{ fontSize: '0.8rem', marginBottom: '8px', color: 'var(--color-text-muted)' }}>
+              Auto-Backups ({backups.length}/7)
+            </h3>
+            <div className="backup-list">
+              {backups.map((b) => (
+                <div key={b.date} className="backup-item">
+                  <span className="backup-date">{b.date}</span>
+                  <span className="backup-size">{(b.sizeBytes / 1024).toFixed(1)} KB</span>
+                  <button
+                    className="btn btn-small"
+                    onClick={async () => {
+                      const { restoreFromLocalBackup, processPendingRestore } = await import('../../core/db/client');
+                      const ok = restoreFromLocalBackup(b.date);
+                      if (ok) {
+                        await processPendingRestore();
+                        setRestoreMsg('Restore complete. Reloading...');
+                        setTimeout(() => window.location.reload(), 1500);
+                      } else {
+                        setRestoreMsg('Restore failed: invalid backup data.');
+                      }
+                    }}
+                  >
+                    <RefreshCw size={12} /> Restore
+                  </button>
+                  <button
+                    className="btn btn-small btn-danger"
+                    onClick={() => {
+                      import('../../core/db/client').then((m) => {
+                        m.deleteLocalBackup(b.date);
+                        refreshBackups();
+                      });
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="settings-section">

@@ -15,6 +15,7 @@ let initialized = false;
 
 export interface StorageInfo {
   persisted: boolean;
+  storageType: 'opfs' | 'memory';
   usageBytes: number;
   quotaBytes: number;
   pctUsed: number;
@@ -38,13 +39,21 @@ export async function initializeDatabase(): Promise<void> {
     const usageBytes = estimate.usage ?? 0;
     const quotaBytes = estimate.quota ?? 0;
     const pctUsed = quotaBytes > 0 ? Math.round((usageBytes / quotaBytes) * 100) : 0;
-    cachedStorageInfo = { persisted, usageBytes, quotaBytes, pctUsed };
+    const storageType: 'opfs' | 'memory' = self.crossOriginIsolated ? 'opfs' : 'memory';
+    cachedStorageInfo = { persisted, storageType, usageBytes, quotaBytes, pctUsed };
     logger.info('storage_init', {
       persisted,
+      storage_type: storageType,
+      cross_origin_isolated: self.crossOriginIsolated,
       usage_mb: Math.round(usageBytes / 1024 / 1024),
       quota_mb: Math.round(quotaBytes / 1024 / 1024),
       pct_used: pctUsed,
     });
+    if (storageType === 'memory') {
+      logger.warn('storage_init', {
+        message: 'OPFS unavailable — data will be lost on refresh. Ensure COOP and COEP headers are set.',
+      });
+    }
   }
 
   await sqlocal.sql`

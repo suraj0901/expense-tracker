@@ -13,3 +13,5 @@ export { getInsight, upsertInsight, isInsightStale } from './insights';
 export { setGoal, getGoals, updateGoal, deleteGoal } from './goals';
 export type { Goal } from './goals';
 export { exportCSV, exportPDF } from './export';
+export { exportDatabase, importDatabase, autoBackup, getStoredBackups, restoreFromLocalBackup, processPendingRestore, deleteLocalBackup } from './backup';
+export type { StoredBackup } from './backup';

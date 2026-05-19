@@ -229,7 +229,17 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {storageInfo && (storageInfo.pctUsed > 90 || !storageInfo.persisted) && (
+      {storageInfo && storageInfo.storageType === 'memory' && (
+        <div className="storage-warning-banner storage-warning-critical">
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <span>
+            Database is running in memory — all data will be lost on refresh.
+            Your deployment server must set Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers.
+            See the deployment guide or use <code>node server.js</code> to run locally.
+          </span>
+        </div>
+      )}
+      {storageInfo && storageInfo.storageType === 'opfs' && (storageInfo.pctUsed > 90 || !storageInfo.persisted) && (
         <div className="storage-warning-banner">
           {!storageInfo.persisted
             ? 'Storage is not persistent — data may be lost if device runs low on space.'

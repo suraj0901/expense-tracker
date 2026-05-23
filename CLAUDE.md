@@ -19,102 +19,107 @@ Tests are in `src/` colocated with source files (`*.test.ts`). Vitest uses jsdom
 
 ## Architecture
 
-This is a **fully client-side expense tracker** — no backend, no proxy. The AI agent runs in the browser as an agentic loop: user message → AI provider → tool calls → SQLite writes.
+This is a **fully client-side expense tracker** — no backend, no proxy. The AI agent runs in the browser as an agentic loop.
+
+Every module follows **provider-consumer pattern**: a consumer declares an interface of what it needs; a provider implements it. The wiring happens in one place. This is mandatory — never skip the interface and couple directly to a concrete implementation.
+
+### Layer Model (strict top-down)
+
+Dependencies point **inward and downward only**. A lower layer MUST NOT import from a higher layer.
 
 ```
-User message → Agent loop (agent.ts) → AI provider → Tool executor → DB
-                                   ↑ (multi-turn)           ↓
-                             Tool results ←──────── Tool calls
+Layer 5: UI / Presentation       — React components, Tailwind
+    ↓ may import from
+Layer 4: Framework Integration   — Zustand stores, React hooks
+    ↓ may import from
+Layer 3: Application / Agent     — Message pipeline, tool loop, scheduler
+    ↓ may import from
+Layer 2: Domain / Business Logic — Money, transactions, budgets, goals, rules
+    ↓ may import from
+Layer 1: Infrastructure          — Storage adapters, HTTP clients, notifications
+    ↓ may import from
+Layer 0: Platform                — Browser APIs (fetch, OPFS, navigator, Service Worker)
 ```
 
-### Core layers (`src/core/`)
+### Mandatory Patterns
 
-**`agent/`** — The application's intelligence. `agent.ts:processMessage()` is the single entry point. It:
-1. Injects merchant hints (cross-session memory) into the system prompt
-2. Appends the last 20 messages as conversation history
-3. Calls the AI provider; loops on tool calls until the AI responds with text only
-4. Persists messages to the `messages` table
+**Provider-Consumer (always)**
+Every capability is a consumer-interface + provider-implementation pair. The agent consumes a `MessageRepository` interface; the DB layer provides `SQLiteMessageRepository`. The UI consumes a `ConnectivityProvider` interface; the platform layer provides `BrowserConnectivity`. **Never** import a concrete implementation directly from a higher layer — always depend on the interface.
 
-**`agent/system-prompt.ts`** — Product behavior lives here, not in code. Changing how the app responds means editing this prompt string. Merchant hints are injected at the bottom as `Known merchants: swiggy→Food, uber→Transport, ...`
+**Registry (for dispatch with open extension points)**
+Tools, providers, and pipeline steps use a registry pattern. Each tool registers itself: `toolRegistry.register('store_expense', { schema, handler })`. The executor loops over `toolRegistry.entries()`. **Never** write a switch statement for dispatch — it violates Open/Closed. When adding a new tool, create a file and register it; do NOT edit the executor.
 
-**`agent/tool-executor.ts`** — Pure dispatch. Maps tool name → DB function. Money conversion (`rupeesToPaise` / `paiseToRupees`) happens at the executor boundary.
+**Message Pipeline (for agent message processing)**
+Messages flow through a pluggable pipeline: `[validate] → [connectivity check] → [rate limit] → [sanitize] → [AI call] → [persist]`. Each step is a middleware implementing `MessageMiddleware`. Adding a new check (e.g., internet connectivity) means writing one middleware class and registering it — zero existing code modified.
 
-**`agent/tools.ts`** — 15 AI tool definitions (JSON Schema format sent to providers): store_expense, store_income, get_expenses, get_monthly_summary, get_category_breakdown, get_recent_transactions, update_expense, delete_expense, get_budget_status, undo_delete, set_goal, get_goals, delete_goal, create_category, list_categories.
+**Observer / Event Bus (for cross-cutting side effects)**
+Modules emit events; subscribers react. `eventBus.emit('transaction:created', tx)`. The merchant-hint learner, scheduler, notifications, and backup each subscribe independently. **Never** call a side-effect function directly from a write operation (e.g., `insertTransaction` must NOT call `upsertMerchantHint`).
 
-**`agent/tool-schemas.ts`** — Zod schemas for validating tool call arguments before execution.
+**Adapter (for platform APIs)**
+Browser APIs are wrapped behind interfaces: `ConnectivityProvider`, `NotificationService`, `StorageAdapter`, `HttpClient`. The domain layer never touches `navigator`, `localStorage`, `fetch`, or `Notification` directly.
 
-### Database (`src/core/db/`)
+### Directory Structure
 
-SQLite via SQLocal (OPFS in the browser) + Drizzle ORM. Six tables: `transactions`, `categories`, `messages`, `merchant_hints`, `goals`, `insights`. One stub table `sync_metadata` (unused).
+```
+src/
+  core/
+    domain/           — Layer 2: types, money.ts, pure business functions
+    app/              — Layer 3: agent loop, message pipeline, tool registry, scheduler
+    infrastructure/   — Layer 1: storage adapters, HTTP, notifications, connectivity
+    platform/         — Layer 0: browser API wrappers (OPFS, fetch, navigator)
+    providers/        — Layer 1: AI provider implementations (Anthropic, Gemini, etc.)
+  features/           — Layer 4+5: React components + Zustand stores (one folder per feature)
+    chat/
+    dashboard/
+    settings/
+    drafts/
+```
 
-- `client.ts` — barrel re-export of all DB operations
-- `init.ts` — Drizzle instance, `CREATE TABLE IF NOT EXISTS` DDL, seeds 14 default categories
-- `transactions-write.ts` — insert, update, soft-delete (sets `isDeleted=true`), undo-delete. Automatically upserts merchant hints on insert/update.
-- `transactions-read.ts` — filtered queries + `getRecent`
-- `summaries.ts` — monthly summary aggregation, category breakdown, budget status (spent vs limit per category)
-- `merchant-hints.ts` — learns `merchant→category` mappings. When a transaction is saved with a merchant name, it upserts a hint. These hints feed into the system prompt so the AI remembers categories across sessions.
-- `goals.ts` — monthly savings/budget goal CRUD
-- `insights.ts` — AI-generated monthly insight persistence (cached with staleness detection)
-- `categories.ts` — category CRUD operations
-- `messages.ts` — message persistence (conversation history)
-- `export.ts` — CSV and PDF export utilities
+### Import Rules (enforced — do NOT violate)
 
-### Money (`src/core/domain/money.ts`)
+| Layer | May import from |
+|-------|----------------|
+| `features/` (UI + stores) | `core/app/`, `core/domain/`, `core/infrastructure/` interfaces |
+| `core/app/` | `core/domain/`, `core/infrastructure/` interfaces |
+| `core/domain/` | nothing (pure TypeScript, zero dependencies) |
+| `core/infrastructure/` | `core/domain/`, `core/platform/` |
+| `core/platform/` | nothing (browser APIs only) |
 
-All monetary values are stored as **paise** (integers, branded type `Paise`). Conversion functions:
-- `rupeesToPaise(rupees)` — multiply by 100, round
-- `paiseToRupees(paise)` — divide by 100
-- `formatINR(paise)` — Indian number formatting, no decimals
-- `formatINRCompact(paise)` — ₹5K, ₹1.5L
+**Forbidden imports (will be rejected in review):**
+- `features/` importing from `core/infrastructure/` concrete implementations (only interfaces)
+- `features/` importing from `core/db/` (use repository interfaces via app layer)
+- `core/domain/` importing anything outside `core/domain/`
+- `core/app/` importing from `features/` (UI must depend on app, not vice versa)
+- Any file importing `* as db from '../db/client'` directly — use the repository interface
 
-### Providers (`src/core/providers/`)
+### How to Add New Capabilities
 
-Four backends implementing the `AIProvider` interface: Anthropic (Claude Sonnet 4), Gemini (2.0 Flash), DeepSeek (deepseek-chat), and Local (WebLLM via `@mlc-ai/web-llm`, runs Qwen 3.5 2B in-browser). The factory (`factory.ts`) creates the right one from settings.
+**New tool:** Create `core/app/tools/store-expense.tool.ts` with schema + handler. Register in tool registry. Done. Do NOT edit `tool-executor.ts`.
 
-The `AIProvider` interface has exactly two methods: `chat()` and `isConfigured()`. The agent loop calls `chat()` for every turn, passing the full accumulated message history. No separate tool-result method exists.
+**New AI provider:** Create `core/providers/new-provider.ts` implementing `AIProvider`. Register in provider registry. Done. Do NOT edit a switch statement.
 
-API keys live in `localStorage`. Calls go direct from the browser to the provider — no proxy.
+**New middleware (connectivity check, rate limiter, etc.):** Create middleware class implementing `MessageMiddleware`. Register in pipeline. Done.
 
-### Scheduler (`src/core/scheduler.ts`)
+**New storage backend (backend API instead of SQLite):** Create `core/infrastructure/api-transaction-repository.ts` implementing `TransactionRepository`. Swap in composition root. Done.
 
-Starts 2 minutes after load, then runs every 30 minutes (plus on `visibilitychange`). Two responsibilities:
-1. **Auto-log rules** — runs `processAutoLogRules()` to auto-create transactions for opted-in recurring patterns (same merchant + category + similar amount).
-2. **Suggestions** — detects repeated spending patterns (same category + similar amount ±20% appearing 3+ times). Emits `Suggestion` objects consumed by the `SuggestionStrip` UI component. Runs locally — no AI credits consumed.
+**New platform capability (notifications, background sync):** Create interface in `core/app/interfaces/`. Create platform wrapper in `core/platform/`. Wire in composition root.
 
-### Recurring rules (`src/core/recurring.ts`)
+### Composition Root
 
-Auto-log rule management (localStorage-based). Detects repeated transactions from the same merchant and offers to auto-log them in the future. Tracks frequency, amount patterns, and opt-in status.
+`src/core/composition-root.ts` is the single file that wires providers to consumers. Every interface-to-implementation binding happens here. Nothing else in the codebase calls `new` on a concrete implementation — only the composition root wires concrete classes.
 
-### Share target (`src/core/share-target.ts`)
+### Testing Rules
 
-Parses SMS/bank notification text shared from other apps (Android share target). Extracts merchant, amount, and transaction type from bank alert strings.
+- Domain layer: pure unit tests, no mocks needed
+- App layer: mock interfaces (repositories, providers), test pipeline logic
+- Infrastructure: integration tests against real platform APIs
+- UI: test components with mock stores + mock app layer
 
-### Logger (`src/core/logger.ts`)
-
-Structured JSON logger — every line has `level`, `message`, `trace_id`. `logger.withTrace()` wraps async operations with `:start`/`:end` lines and `duration_ms`. Error logs include `error_message` and `error_stack`.
-
-### Features (`src/features/`)
-
-- **chat/** — ChatView, MessageBubble, SmartHeader, SuggestionStrip, EmptyState, DateSeparator, VoiceInput, CategoryPicker, plus Zustand store (`chat.store.ts`). The store holds ephemeral UI state (input, sending flag) and delegates persistence to the DB + agent.
-- **dashboard/** — Monthly summary, Recharts charts, and AI-powered monthly insights.
-- **settings/** — Provider picker, API key management, auto-log rules management, WebLLM model download card. Settings persisted to localStorage via a Zustand store.
-- **drafts/** — SMS/bank share drafts queue. When transactions are shared from other apps, they land here as drafts awaiting one-tap confirmation. Managed via `drafts.store.ts`.
-
-### PWA / Service Worker (`src/sw.ts`)
-
-Full PWA with `vite-plugin-pwa` (injectManifest strategy). Supports:
-- **Install prompt** — custom install flow in `App.tsx`
-- **Share target** — Android share-to-app for SMS/bank alerts
-- **Periodic background sync** — registered in `App.tsx` for offline-ready data refresh
-- **Cross-origin isolation** — Vite dev server sets `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` for OPFS/SharedArrayBuffer support
-
-### Routing
-
-Hash-based routing (`window.location.hash`) for PWA compatibility. No TanStack Router usage despite the dependency — three hardcoded tabs: chat, dashboard, settings.
+Every new module ships with its interface + tests for the interface contract. Implementations are tested against the interface contract.
 
 ## Key Design Decisions
 
-- **Money in paise as branded type**: `Paise = number & { __brand: 'paise' }`. Prevents accidental mixing with rupees. Conversion at the tool executor boundary.
+- **Money in paise as branded type**: `Paise = number & { __brand: 'paise' }`. Prevents accidental mixing with rupees. Conversion at the infrastructure boundary.
 - **Soft deletes only**: Transactions are never hard-deleted. `isDeleted` flag, `undo_delete` tool.
 - **Cross-session memory via merchant_hints**: The DB remembers `merchant→category` mappings. Injected into the system prompt so the AI picks the right category without asking.
 - **System prompt IS product behavior**: Confirmation messages, logging rules, query rules, pattern awareness — all in the prompt string, not in React code.
@@ -122,6 +127,19 @@ Hash-based routing (`window.location.hash`) for PWA compatibility. No TanStack R
 - **Zustand for ephemeral UI state only**: Persistent data stays in SQLite. Zustand stores hold input buffer, sending flag, settings, and draft queue.
 - **Tailwind CSS v4**: Styling via `@tailwindcss/vite` Vite plugin. No CSS-in-JS.
 - **ID generation via nanoid**: All IDs (transactions, messages, goals, etc.) use `nanoid`.
+
+## Current State (legacy — being refactored to the above model)
+
+The codebase is currently MVP-quality and does NOT conform to the layer model above. Files that need refactoring:
+- `agent.ts` — monolithic, mixed responsibilities, coupled directly to DB. Target: split into pipeline steps.
+- `tool-executor.ts` — giant switch statement. Target: registry pattern.
+- `init.ts` — duplicate DDL (also in schema.ts). Target: single source of truth.
+- `transactions-write.ts` — directly calls merchant hint upsert. Target: event bus.
+- `scheduler.ts` — global mutable state. Target: class with injected dependencies.
+- `chat.store.ts` — directly calls agent + DB. Target: consume app-layer services via interfaces.
+- Various files import `* as db from '../db/client'` — Target: import repository interfaces.
+
+When modifying these files, refactor toward the target pattern incrementally. One logical change per commit.
 
 ## CI
 

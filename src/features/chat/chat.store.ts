@@ -11,6 +11,7 @@ import { processMessage } from '../../core/agent/agent';
 import type { AIProvider } from '../../core/providers/types';
 import { messageRepo, transactionRepo } from '../../core/composition-root';
 import { logger } from '../../core/logger';
+import { useMessageQueueStore } from './messageQueue.store';
 
 interface ChatState {
   messages: Message[];
@@ -24,12 +25,64 @@ interface ChatState {
   setInput: (value: string) => void;
   loadMessages: () => Promise<void>;
   sendMessage: (provider: AIProvider) => Promise<AgentResponse | null>;
+  sendQueuedMessage: (content: string, provider: AIProvider) => Promise<void>;
   clearLatestResponse: () => void;
   undoDelete: (transactionId: string) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
   updateTransactionCategory: (transactionId: string, category: string) => Promise<void>;
   updateTransactionFromDb: (transactionId: string) => Promise<void>;
   clearError: () => void;
+}
+
+async function executeSend(
+  trimmed: string,
+  history: Message[],
+  provider: AIProvider,
+  set: (partial: Partial<ChatState>) => void,
+  get: () => ChatState
+): Promise<AgentResponse | null> {
+  set({ isSending: true, error: null });
+
+  const userMsg: Message = {
+    id: `temp-${Date.now()}`,
+    role: 'user',
+    content: trimmed,
+    toolCalls: null,
+    createdAt: Date.now(),
+  };
+  set({ messages: [...history, userMsg] });
+
+  try {
+    logger.info('chat:sendMessage', {
+      provider: provider.id,
+      messageLength: trimmed.length,
+      historyLength: history.length,
+    });
+
+    const response = await processMessage(trimmed, history, provider);
+
+    await get().loadMessages();
+
+    logger.info('chat:sendMessageComplete', {
+      provider: provider.id,
+      toolsUsed: response.toolsUsed.map((tc) => tc.name),
+      responseLength: response.text.length,
+    });
+
+    set({ isSending: false, latestResponse: response.text });
+    return response;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Something went wrong';
+    logger.error('chat:sendMessageFailed', error instanceof Error ? error : new Error(errorMessage), {
+      provider: provider.id,
+    });
+    set({ isSending: false, error: errorMessage });
+    console.error('[ChatStore] Send failed:', error);
+    // Reload messages to remove optimistic user message
+    await get().loadMessages();
+    return null;
+  }
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -60,53 +113,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const trimmed = inputValue.trim();
     if (!trimmed || get().isSending) return null;
 
-    set({ isSending: true, error: null, inputValue: '' });
+    const queueStore = useMessageQueueStore.getState();
 
-    // Optimistically add user message to UI
-    const userMsg: Message = {
-      id: `temp-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
-      toolCalls: null,
-      createdAt: Date.now(),
-    };
-    set({ messages: [...messages, userMsg] });
-
-    try {
-      logger.info('chat:sendMessage', {
-        provider: provider.id,
-        messageLength: trimmed.length,
-        historyLength: messages.length,
-      });
-
-      const response = await processMessage(trimmed, messages, provider);
-
-      // Reload messages from DB to get persisted IDs
-      await get().loadMessages();
-
-      logger.info('chat:sendMessageComplete', {
-        provider: provider.id,
-        toolsUsed: response.toolsUsed.map((tc) => tc.name),
-        responseLength: response.text.length,
-      });
-
-      set({ isSending: false, latestResponse: response.text });
-      return response;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Something went wrong';
-      logger.error('chat:sendMessageFailed', error instanceof Error ? error : new Error(errorMessage), {
-        provider: provider.id,
-      });
-      set({
-        isSending: false,
-        error: errorMessage,
-      });
-      console.error('[ChatStore] Send failed:', error);
-      // Reload messages to remove optimistic user message
-      await get().loadMessages();
+    // If offline, enqueue the message and show it in UI
+    if (!queueStore.isOnline) {
+      set({ inputValue: '' });
+      const userMsg: Message = {
+        id: `temp-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+        toolCalls: null,
+        createdAt: Date.now(),
+      };
+      set({ messages: [...messages, userMsg] });
+      queueStore.enqueue(trimmed);
       return null;
     }
+
+    set({ inputValue: '' });
+    return executeSend(trimmed, messages, provider, set, get);
+  },
+
+  sendQueuedMessage: async (content, provider) => {
+    const { messages } = get();
+    const queueStore = useMessageQueueStore.getState();
+
+    await executeSend(content, messages, provider, set, get);
+    queueStore.dequeue();
   },
 
   undoDelete: async (transactionId) => {

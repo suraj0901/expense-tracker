@@ -10,6 +10,8 @@ import { SmartHeader } from './SmartHeader';
 import { SuggestionStrip } from './SuggestionStrip';
 import { EmptyState } from './EmptyState';
 import { RecentTransactions } from './RecentTransactions';
+import { OfflineBanner } from './OfflineBanner';
+import { useMessageQueueStore } from './messageQueue.store';
 import { onSuggestion, type Suggestion } from '../../core/scheduler';
 import { DraftBanner } from '../drafts/DraftBanner';
 import { useDraftStore } from '../drafts/drafts.store';
@@ -20,15 +22,17 @@ import { transactionRepo } from '../../core/composition-root';
 export function ChatView() {
   const {
     inputValue, isSending, error, isLoading, latestResponse,
-    setInput, loadMessages, sendMessage, clearError, clearLatestResponse,
+    setInput, loadMessages, sendMessage, clearError, clearLatestResponse, sendQueuedMessage,
   } = useChatStore();
 
   const { provider } = useSettingsStore();
+  const queueStore = useMessageQueueStore();
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasTransactions, setHasTransactions] = useState<boolean | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const drainLockRef = useRef(false);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
@@ -39,6 +43,28 @@ export function ChatView() {
   useEffect(() => {
     transactionRepo.getRecent(1).then((txns) => setHasTransactions(txns.length > 0)).catch(() => setHasTransactions(false));
   }, [refreshKey]);
+
+  // Auto-drain queued messages when back online
+  useEffect(() => {
+    const { isOnline, isDraining, queue } = queueStore;
+    if (!isOnline || isDraining || queue.length === 0 || !provider || drainLockRef.current) return;
+
+    const drain = async () => {
+      drainLockRef.current = true;
+      queueStore.setDraining(true);
+      let remaining = queueStore.queue;
+      while (remaining.length > 0) {
+        const next = remaining[0].content;
+        await sendQueuedMessage(next, provider);
+        remaining = queueStore.queue;
+      }
+      queueStore.setDraining(false);
+      drainLockRef.current = false;
+      triggerRefresh();
+    };
+
+    drain();
+  }, [queueStore.isOnline, queueStore.queue.length, provider, sendQueuedMessage, triggerRefresh]);
 
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -89,6 +115,8 @@ export function ChatView() {
       />
 
       <DraftBanner onLog={handleDraftLog} onDismiss={handleDraftDismiss} />
+
+      <OfflineBanner />
 
       {!isConfigured && (
         <div className="setup-banner">

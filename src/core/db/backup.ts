@@ -1,9 +1,10 @@
 /**
- * Database backup — full export/import + auto-backup to localStorage.
+ * Database backup — full export/import + auto-backup to OPFS.
  */
 import * as schema from './schema';
 import { db } from './init';
 import type { StoredBackup } from '../domain/types';
+import { kvGet, kvSet, kvRemove, kvKeys } from '../platform/kv-store';
 
 const BACKUP_PREFIX = 'db_backup_';
 const MAX_BACKUPS = 7;
@@ -120,14 +121,13 @@ export async function autoBackup(): Promise<void> {
     const backup: BackupData = { version: 1, exportedAt: Date.now(), tables };
     const json = JSON.stringify(backup);
     const dateKey = new Date().toISOString().split('T')[0];
-    localStorage.setItem(`${BACKUP_PREFIX}${dateKey}`, json);
+    kvSet(`${BACKUP_PREFIX}${dateKey}`, json);
 
-    // Prune old backups, keep last MAX_BACKUPS
     const keys = getBackupKeys();
     if (keys.length > MAX_BACKUPS) {
       const toRemove = keys.slice(0, keys.length - MAX_BACKUPS);
       for (const k of toRemove) {
-        localStorage.removeItem(k);
+        kvRemove(`${BACKUP_PREFIX}${k}`);
       }
     }
   } catch {
@@ -136,33 +136,28 @@ export async function autoBackup(): Promise<void> {
 }
 
 function getBackupKeys(): string[] {
-  const keys: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k?.startsWith(BACKUP_PREFIX)) keys.push(k);
-  }
-  keys.sort();
-  return keys;
+  return kvKeys()
+    .filter((k) => k.startsWith(BACKUP_PREFIX))
+    .map((k) => k.slice(BACKUP_PREFIX.length))
+    .sort();
 }
 
 export function getStoredBackups(): StoredBackup[] {
-  return getBackupKeys().map((k) => ({
-    date: k.replace(BACKUP_PREFIX, ''),
-    sizeBytes: (localStorage.getItem(k) ?? '').length,
+  return getBackupKeys().map((date) => ({
+    date,
+    sizeBytes: (kvGet(`${BACKUP_PREFIX}${date}`) ?? '').length,
   }));
 }
 
 export function restoreFromLocalBackup(date: string): boolean {
-  const json = localStorage.getItem(`${BACKUP_PREFIX}${date}`);
+  const json = kvGet(`${BACKUP_PREFIX}${date}`);
   if (!json) return false;
 
   try {
     const data = JSON.parse(json) as BackupData;
     if (!data || data.version !== 1 || !data.tables) return false;
 
-    // We can't await inside a non-async context easily,
-    // so store the parsed data for the caller to process
-    localStorage.setItem('db_restore_pending', json);
+    kvSet('db_restore_pending', json);
     return true;
   } catch {
     return false;
@@ -170,7 +165,7 @@ export function restoreFromLocalBackup(date: string): boolean {
 }
 
 export async function processPendingRestore(): Promise<boolean> {
-  const json = localStorage.getItem('db_restore_pending');
+  const json = kvGet('db_restore_pending');
   if (!json) return false;
 
   try {
@@ -203,7 +198,7 @@ export async function processPendingRestore(): Promise<boolean> {
       for (const row of tables.insights) await db.insert(schema.insights).values(row);
     }
 
-    localStorage.removeItem('db_restore_pending');
+    kvRemove('db_restore_pending');
     return true;
   } catch {
     return false;
@@ -211,5 +206,5 @@ export async function processPendingRestore(): Promise<boolean> {
 }
 
 export function deleteLocalBackup(date: string): void {
-  localStorage.removeItem(`${BACKUP_PREFIX}${date}`);
+  kvRemove(`${BACKUP_PREFIX}${date}`);
 }

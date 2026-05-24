@@ -69,11 +69,13 @@ export interface ProviderSettings {
   webllmEnabled: boolean;
 }
 
+import { kvGet, kvSet } from '../platform/kv-store';
+
 const SETTINGS_KEY = 'expense-tracker-settings';
 
 export function loadSettings(): ProviderSettings {
   try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
+    const stored = kvGet(SETTINGS_KEY);
     if (stored) {
       return JSON.parse(stored) as ProviderSettings;
     }
@@ -90,5 +92,5 @@ export function loadSettings(): ProviderSettings {
 }
 
 export function saveSettings(settings: ProviderSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  kvSet(SETTINGS_KEY, JSON.stringify(settings));
 }

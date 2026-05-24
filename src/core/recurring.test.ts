@@ -7,6 +7,7 @@ import {
   upsertRuleFromSuggestion,
 } from './recurring';
 import type { Suggestion } from './scheduler';
+import { kvClear } from './platform/kv-store';
 
 function makeSuggestion(overrides: Partial<Suggestion> = {}): Suggestion {
   return {
@@ -22,7 +23,7 @@ function makeSuggestion(overrides: Partial<Suggestion> = {}): Suggestion {
 
 describe('getAutoLogRules', () => {
   beforeEach(() => {
-    localStorage.clear();
+    kvClear();
   });
 
   it('returns empty array by default', () => {
@@ -32,7 +33,7 @@ describe('getAutoLogRules', () => {
 
 describe('upsertRuleFromSuggestion', () => {
   beforeEach(() => {
-    localStorage.clear();
+    kvClear();
   });
 
   it('creates a new rule from a suggestion', () => {
@@ -68,7 +69,7 @@ describe('upsertRuleFromSuggestion', () => {
 
 describe('toggleAutoLogRule', () => {
   beforeEach(() => {
-    localStorage.clear();
+    kvClear();
   });
 
   it('toggles a rule from disabled to enabled', () => {
@@ -89,7 +90,7 @@ describe('toggleAutoLogRule', () => {
 
 describe('removeAutoLogRule', () => {
   beforeEach(() => {
-    localStorage.clear();
+    kvClear();
   });
 
   it('removes a rule by id', () => {

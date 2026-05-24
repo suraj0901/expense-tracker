@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useDraftStore } from './drafts.store';
 import type { DraftItem } from './types';
+import { kvClear, kvSet, kvGet } from '../../core/platform/kv-store';
 
 function makeDraft(overrides: Partial<DraftItem> = {}): DraftItem {
   return {
@@ -19,7 +20,7 @@ function makeDraft(overrides: Partial<DraftItem> = {}): DraftItem {
 
 describe('useDraftStore', () => {
   beforeEach(() => {
-    localStorage.clear();
+    kvClear();
     useDraftStore.setState({ drafts: [] });
   });
 
@@ -58,17 +59,17 @@ describe('useDraftStore', () => {
     expect(drafts[0].merchant).toBe('TestMerchant');
   });
 
-  it('persists drafts to localStorage', () => {
+  it('persists drafts to kv-store', () => {
     useDraftStore.getState().add(makeDraft({ id: 'x' }));
-    const raw = localStorage.getItem('expense-tracker:drafts');
+    const raw = kvGet('expense-tracker:drafts');
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].id).toBe('x');
   });
 
-  it('reload resets state from localStorage', () => {
-    localStorage.setItem('expense-tracker:drafts', JSON.stringify([makeDraft({ id: 'lr' })]));
+  it('reload resets state from kv-store', () => {
+    kvSet('expense-tracker:drafts', JSON.stringify([makeDraft({ id: 'lr' })]));
     useDraftStore.getState().reload();
     expect(useDraftStore.getState().drafts).toHaveLength(1);
     expect(useDraftStore.getState().drafts[0].id).toBe('lr');

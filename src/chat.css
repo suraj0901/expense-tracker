@@ -295,6 +295,32 @@
   color: var(--color-accent); font-weight: 600; text-decoration: none;
 }
 
+.offline-banner {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: var(--radius-md); margin: 8px 12px;
+  font-size: 0.8125rem; color: var(--color-warning); flex-shrink: 0;
+  animation: 0.25s ease-out fadeIn;
+}
+
+.offline-banner strong {
+  color: #fbbf24; font-weight: 700;
+}
+
+.offline-banner.reconnecting {
+  background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.25);
+  color: var(--color-info);
+}
+
+.offline-banner.connected {
+  background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.25);
+  color: var(--color-income);
+}
+
+.reconnect-spinner {
+  animation: spin 1s linear infinite;
+}
+
 /* ─── Suggestion Strip ──────────────────────────────────────────────── */
 
 .suggestion-strip {

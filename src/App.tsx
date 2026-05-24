@@ -13,6 +13,7 @@ import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
 import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase, getStorageInfo } from './core/db/client';
+import { initKvStore } from './core/platform/kv-store';
 import type { StorageInfo } from './core/db/client';
 import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
 import { transactionRepo } from './core/composition-root';
@@ -46,6 +47,7 @@ export default function App() {
 
   const initApp = useCallback(async () => {
     try {
+      await initKvStore();
       await initializeDatabase();
       initSettings();
       const info = getStorageInfo();

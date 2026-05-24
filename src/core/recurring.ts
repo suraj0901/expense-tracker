@@ -2,7 +2,7 @@
  * Recurring auto-log — detects strong spending patterns and auto-creates
  * transactions when the user has opted in.
  *
- * Rules are stored in localStorage. When a rule is enabled and the
+ * Rules are stored in OPFS. When a rule is enabled and the
  * scheduler runs within the rule's time window, the transaction is
  * auto-created without notification.
  */
@@ -13,6 +13,7 @@ import { transactionRepo } from './composition-root';
 import { rupeesToPaise, paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import type { Suggestion } from './scheduler';
+import { kvGet, kvSet } from './platform/kv-store';
 
 export interface AutoLogRule {
   id: string;
@@ -29,13 +30,13 @@ const STORAGE_KEY = 'expense-tracker:auto-log-rules';
 
 function loadRules(): AutoLogRule[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = kvGet(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
 function saveRules(rules: AutoLogRule[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
+  kvSet(STORAGE_KEY, JSON.stringify(rules));
 }
 
 export function getAutoLogRules(): AutoLogRule[] {

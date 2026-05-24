@@ -2,17 +2,18 @@
  * Draft queue — Zustand store for parsed-but-unconfirmed transactions.
  *
  * Drafts come from SMS shares and are shown for one-tap confirmation.
- * Persisted to localStorage so they survive page refreshes.
+ * Persisted to OPFS so they survive page refreshes.
  */
 
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { DraftItem } from './types';
 import { DRAFT_QUEUE_KEY } from './types';
+import { kvGet, kvSet } from '../../core/platform/kv-store';
 
 function loadDrafts(): DraftItem[] {
   try {
-    const raw = localStorage.getItem(DRAFT_QUEUE_KEY);
+    const raw = kvGet(DRAFT_QUEUE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -20,7 +21,7 @@ function loadDrafts(): DraftItem[] {
 }
 
 function saveDrafts(drafts: DraftItem[]): void {
-  localStorage.setItem(DRAFT_QUEUE_KEY, JSON.stringify(drafts));
+  kvSet(DRAFT_QUEUE_KEY, JSON.stringify(drafts));
 }
 
 interface DraftStore {

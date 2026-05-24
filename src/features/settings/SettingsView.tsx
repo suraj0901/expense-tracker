@@ -357,7 +357,7 @@ export function SettingsView() {
         <h2>About</h2>
         <div className="about-text">
           <p>AI Expense Tracker — Agent-Centric MVP</p>
-          <p>Your data stays on this device. API keys are stored in localStorage.</p>
+          <p>Your data stays on this device. API keys are stored on the local file system.</p>
           <p>AI calls go directly from your browser to the provider's API.</p>
           <p style={{ marginTop: '8px', opacity: 0.6 }}>v1.0.0 · May 2026</p>
         </div>

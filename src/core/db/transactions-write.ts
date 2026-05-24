@@ -4,7 +4,6 @@
 import { eq } from 'drizzle-orm';
 import * as schema from './schema';
 import { db } from './init';
-import { upsertMerchantHint } from './merchant-hints';
 
 interface InsertTransactionParams {
   id: string; amount: number; type: string; category: string;
@@ -20,7 +19,6 @@ export async function insertTransaction(params: InsertTransactionParams) {
     createdAt: params.createdAt, updatedAt: params.updatedAt,
     isDeleted: params.isDeleted,
   });
-  if (params.merchant) await upsertMerchantHint(params.merchant, params.category);
   return { success: true, id: params.id };
 }
 
@@ -35,7 +33,6 @@ export async function updateTransaction(id: string, params: UpdateTransactionPar
   if (params.merchant !== undefined) data.merchant = params.merchant;
   if (params.note !== undefined) data.note = params.note;
   await db.update(schema.transactions).set(data).where(eq(schema.transactions.id, id));
-  if (params.merchant && params.category) await upsertMerchantHint(params.merchant, params.category);
   return { success: true, id };
 }
 

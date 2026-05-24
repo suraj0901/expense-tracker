@@ -9,7 +9,7 @@ import type { ProviderType } from '../../core/providers/types';
 import { LocalAIProvider } from '../../core/providers/local';
 import { ModelDownloadCard } from './ModelDownloadCard';
 import { AutoLogRules } from './AutoLogRules';
-import type { StoredBackup } from '../../core/db/client';
+import type { StoredBackup } from '../../core/domain/types';
 
 export function SettingsView() {
   const { settings, provider, setActiveProvider, setApiKey, clearApiKey, setWebLLMEnabled } =

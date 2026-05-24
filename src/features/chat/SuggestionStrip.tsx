@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { nanoid } from 'nanoid';
-import { insertTransaction } from '../../core/db/client';
+import { transactionRepo } from '../../core/composition-root';
 import { rupeesToPaise } from '../../core/domain/money';
 import { dismissSuggestion, type Suggestion } from '../../core/scheduler';
 import { CategoryPicker } from './CategoryPicker';
@@ -28,7 +28,7 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
     try {
       const id = nanoid();
       const today = new Date().toISOString().slice(0, 10);
-      await insertTransaction({
+      await transactionRepo.insert({
         id, amount: rupeesToPaise(s.typicalAmount), type: 'expense',
         category: s.category, merchant: s.merchant ?? null,
         note: null, date: today,
@@ -48,7 +48,7 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
     setQuickAddOpen(false);
     const id = nanoid();
     const today = new Date().toISOString().slice(0, 10);
-    await insertTransaction({
+    await transactionRepo.insert({
       id, amount: rupeesToPaise(0), type: 'expense',
       category, merchant: null, note: 'quick add',
       date: today, createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false,

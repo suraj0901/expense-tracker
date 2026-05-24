@@ -1,9 +1,7 @@
 /**
  * Drizzle ORM schema — 4 tables.
  *
- * transactions · categories · messages · merchant_hints
- *
- * sync_metadata is a Phase 2 stub — table exists but is unused in MVP.
+ * transactions · categories · messages · merchant_hints · goals · insights
  */
 
 import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
@@ -66,15 +64,6 @@ export const goals = sqliteTable('goals', {
   deadline: text('deadline'), // nullable — 'YYYY-MM-DD'
   createdAt: integer('created_at').notNull(), // Unix ms
   updatedAt: integer('updated_at').notNull(), // Unix ms
-});
-
-// ─── sync_metadata (Phase 2 stub) ───────────────────────────────────────
-
-export const syncMetadata = sqliteTable('sync_metadata', {
-  id: text('id').primaryKey().default('singleton'),
-  deviceId: text('device_id').notNull(), // random UUID at install
-  lastSyncedAt: integer('last_synced_at'), // null until sync configured
-  tursoDbUrl: text('turso_db_url'), // null until sync configured
 });
 
 // ─── insights ────────────────────────────────────────────────────────────

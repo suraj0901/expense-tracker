@@ -5,17 +5,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from './schema';
 import { db } from './init';
 import type { Paise } from '../domain/money';
-
-export interface Goal {
-  id: string;
-  name: string;
-  targetAmount: Paise;
-  currentAmount: Paise;
-  category: string | null;
-  deadline: string | null;
-  createdAt: number;
-  updatedAt: number;
-}
+import type { Goal } from '../domain/types';
 
 export async function setGoal(goal: {
   id: string;

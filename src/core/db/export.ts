@@ -5,10 +5,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { paiseToRupees } from '../domain/money';
 import type { Paise } from '../domain/money';
-import * as db from './client';
+import { queryTransactions } from './transactions-read';
 
 async function fetchExportData() {
-  const transactions = await db.queryTransactions({ limit: 10000 });
+  const transactions = await queryTransactions({ limit: 10000 });
   return transactions.map((t) => ({
     date: t.date,
     type: t.type,

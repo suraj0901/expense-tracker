@@ -10,9 +10,8 @@ import { format, subMonths, addMonths, differenceInDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Target, Sparkles, BarChart3 } from 'lucide-react';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
-import * as db from '../../core/db/client';
-import type { MonthlySummary, CategoryBreakdownItem, BudgetStatusItem } from '../../core/domain/types';
-import type { Goal } from '../../core/db/client';
+import { summaryRepo, goalRepo, insightRepo } from '../../core/composition-root';
+import type { MonthlySummary, CategoryBreakdownItem, BudgetStatusItem, Goal } from '../../core/domain/types';
 import { logger } from '../../core/logger';
 import { useSettingsStore } from '../settings/settings.store';
 import { generateInsight } from './insights';
@@ -51,12 +50,12 @@ export function DashboardView() {
     const traceId = logger.startTrace('dashboard:loadSummary', { month, year });
     try {
       const [data, prevData, budgetData] = await Promise.all([
-        db.getMonthlySummary(month, year),
-        db.getMonthlySummary(
+        summaryRepo.getMonthlySummary(month, year),
+        summaryRepo.getMonthlySummary(
           subMonths(currentDate, 1).getMonth() + 1,
           subMonths(currentDate, 1).getFullYear(),
         ),
-        db.getBudgetStatus(),
+        summaryRepo.getBudgetStatus(),
       ]);
       setSummary(data as MonthlySummary);
       setPreviousSummary(prevData as MonthlySummary);
@@ -80,7 +79,7 @@ export function DashboardView() {
   }, [loadSummary]);
 
   useEffect(() => {
-    db.getGoals().then(setGoals).catch(() => {});
+    goalRepo.getAll().then(setGoals).catch(() => {});
   }, [month, year]);
 
   const now = new Date();
@@ -110,8 +109,8 @@ export function DashboardView() {
       setInsight(null);
 
       try {
-        const cached = await db.getInsight(month, year);
-        if (cached && !(await db.isInsightStale(month, year, cached.generatedAt))) {
+        const cached = await insightRepo.get(month, year);
+        if (cached && !(await insightRepo.isStale(month, year, cached.generatedAt))) {
           if (!cancelled) {
             setInsight(cached.text);
             setInsightLoading(false);
@@ -122,7 +121,7 @@ export function DashboardView() {
         const text = await generateInsight(s, ps, g, bs, p);
         if (!cancelled) {
           setInsight(text);
-          db.upsertInsight(month, year, text).catch(() => {});
+          insightRepo.upsert(month, year, text).catch(() => {});
         }
       } catch (err) {
         if (!cancelled) {
@@ -149,7 +148,7 @@ export function DashboardView() {
       });
     }
     const summaries = await Promise.all(
-      months.map((m) => db.getMonthlySummary(m.month, m.year))
+      months.map((m) => summaryRepo.getMonthlySummary(m.month, m.year))
     );
     const catMap = new Map<string, CompareDatum>();
     summaries.forEach((s, i) => {

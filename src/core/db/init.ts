@@ -1,5 +1,10 @@
 /**
- * DB init — Drizzle instance + schema creation + category seeding.
+ * DB init — Drizzle instance + DDL execution + category seeding.
+ *
+ * DDL lives here (not in schema.ts) because SQLocal/Drizzle with
+ * sqlite-proxy doesn't auto-create tables from Drizzle definitions.
+ * schema.ts provides the ORM type definitions for query building.
+ * If you change schema.ts, update the DDL here to match.
  */
 import { SQLocalDrizzle } from 'sqlocal/drizzle';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';

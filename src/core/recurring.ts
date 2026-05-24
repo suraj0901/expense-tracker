@@ -9,7 +9,7 @@
 
 import { nanoid } from 'nanoid';
 import { format } from 'date-fns';
-import { insertTransaction, queryTransactions } from './db/client';
+import { transactionRepo } from './composition-root';
 import { rupeesToPaise, paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import type { Suggestion } from './scheduler';
@@ -88,7 +88,7 @@ export async function processAutoLogRules(): Promise<number> {
   const hour = now.getHours();
   const today = format(now, 'yyyy-MM-dd');
 
-  const todayTxns = await queryTransactions({ start_date: today, end_date: today, limit: 1000 });
+  const todayTxns = await transactionRepo.query({ start_date: today, end_date: today, limit: 1000 });
 
   let autoLogged = 0;
   for (const rule of rules) {
@@ -104,7 +104,7 @@ export async function processAutoLogRules(): Promise<number> {
     );
     if (exists) continue;
 
-    await insertTransaction({
+    await transactionRepo.insert({
       id: nanoid(),
       amount: rupeesToPaise(rule.typicalAmount),
       type: 'expense',

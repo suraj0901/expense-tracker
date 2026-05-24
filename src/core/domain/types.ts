@@ -144,3 +144,29 @@ export interface BudgetStatusItem {
   remaining: Paise;
   percentUsed: number;
 }
+
+export interface BudgetStatusResult {
+  hasBudgets: boolean;
+  message?: string;
+  items: BudgetStatusItem[];
+}
+
+// ─── Goals ───────────────────────────────────────────────────────────────
+
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: Paise;
+  currentAmount: Paise;
+  category: string | null;
+  deadline: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ─── Backup ──────────────────────────────────────────────────────────────
+
+export interface StoredBackup {
+  date: string;
+  sizeBytes: number;
+}

@@ -3,7 +3,7 @@
  */
 import type { AIProvider, ProviderMessage } from '../../core/providers/types';
 import type { MonthlySummary, BudgetStatusItem } from '../../core/domain/types';
-import type { Goal } from '../../core/db/client';
+import type { Goal } from '../../core/domain/types';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 import { logger } from '../../core/logger';

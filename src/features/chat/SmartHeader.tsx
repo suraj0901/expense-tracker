@@ -2,7 +2,7 @@
  * SmartHeader — today's spend + month status, always visible above chat.
  */
 import { useEffect, useState } from 'react';
-import { getMonthlySummary, queryTransactions } from '../../core/db/client';
+import { summaryRepo, transactionRepo } from '../../core/composition-root';
 import { formatINRCompact } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 
@@ -24,8 +24,8 @@ export function SmartHeader({ refreshKey }: { refreshKey: number }) {
       const year = now.getFullYear();
 
       const [todayTxns, summary] = await Promise.all([
-        queryTransactions({ start_date: today, end_date: today, limit: 1000 }),
-        getMonthlySummary(month, year),
+        transactionRepo.query({ start_date: today, end_date: today, limit: 1000 }),
+        summaryRepo.getMonthlySummary(month, year),
       ]);
 
       if (cancelled) return;

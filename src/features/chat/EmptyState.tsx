@@ -4,7 +4,7 @@
  */
 import { Coffee, Car, ShoppingCart } from 'lucide-react';
 import { nanoid } from 'nanoid';
-import { insertTransaction } from '../../core/db/client';
+import { transactionRepo } from '../../core/composition-root';
 import { rupeesToPaise } from '../../core/domain/money';
 
 interface EmptyStateProps {
@@ -26,7 +26,7 @@ export function EmptyState({ onQuickLog }: EmptyStateProps) {
   const handleQuickAction = async (category: string, amount: number) => {
     const id = nanoid();
     const today = new Date().toISOString().slice(0, 10);
-    await insertTransaction({
+    await transactionRepo.insert({
       id, amount: rupeesToPaise(amount), type: 'expense',
       category, merchant: null, note: null, date: today,
       createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false,

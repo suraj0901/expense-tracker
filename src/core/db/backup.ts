@@ -3,6 +3,7 @@
  */
 import * as schema from './schema';
 import { db } from './init';
+import type { StoredBackup } from '../domain/types';
 
 const BACKUP_PREFIX = 'db_backup_';
 const MAX_BACKUPS = 7;
@@ -142,11 +143,6 @@ function getBackupKeys(): string[] {
   }
   keys.sort();
   return keys;
-}
-
-export interface StoredBackup {
-  date: string;
-  sizeBytes: number;
 }
 
 export function getStoredBackups(): StoredBackup[] {

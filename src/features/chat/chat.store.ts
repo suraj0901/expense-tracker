@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import type { Message, AgentResponse } from '../../core/domain/types';
 import { processMessage } from '../../core/agent/agent';
 import type { AIProvider } from '../../core/providers/types';
-import * as db from '../../core/db/client';
+import { messageRepo, transactionRepo } from '../../core/composition-root';
 import { logger } from '../../core/logger';
 
 interface ChatState {
@@ -41,16 +41,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   loadMessages: async () => {
     try {
-      const msgs = await db.getAllMessages();
-      const parsed: Message[] = msgs.map((m) => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-        toolCalls: m.toolCalls ? JSON.parse(m.toolCalls) : null,
-        createdAt: m.createdAt,
-      }));
-      set({ messages: parsed, isLoading: false });
-      logger.debug('chat:loadMessages', { count: parsed.length });
+      const msgs = await messageRepo.getAll();
+      set({ messages: msgs, isLoading: false });
+      logger.debug('chat:loadMessages', { count: msgs.length });
     } catch (error) {
       set({ error: 'Failed to load messages', isLoading: false });
       logger.error('chat:loadMessagesFailed', error instanceof Error ? error : new Error(String(error)));
@@ -113,7 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   undoDelete: async (transactionId) => {
     try {
-      await db.undoDelete(transactionId);
+      await transactionRepo.undoDelete(transactionId);
     } catch (error) {
       console.error('[ChatStore] Undo failed:', error);
     }
@@ -121,7 +114,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   deleteTransaction: async (transactionId) => {
     try {
-      await db.softDelete(transactionId);
+      await transactionRepo.softDelete(transactionId);
     } catch (error) {
       console.error('[ChatStore] Delete failed:', error);
     }
@@ -129,7 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   updateTransactionCategory: async (transactionId, category) => {
     try {
-      await db.updateTransaction(transactionId, { category, updatedAt: Date.now() });
+      await transactionRepo.update(transactionId, { category, updatedAt: Date.now() });
     } catch (error) {
       console.error('[ChatStore] Category update failed:', error);
     }

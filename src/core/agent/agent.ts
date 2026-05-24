@@ -12,7 +12,7 @@ import type { AgentResponse, Message, ToolCallRecord } from '../domain/types';
 import { TOOL_DEFINITIONS } from './tools';
 import { executeTool } from './tool-executor';
 import { buildSystemPrompt } from './system-prompt';
-import * as db from '../db/client';
+import { messageRepo, merchantHintRepo } from '../composition-root';
 import { logger } from '../logger';
 
 /**
@@ -38,7 +38,7 @@ export async function processMessage(
 
   try {
     // Inject merchant hints for cross-session memory
-    const hints = await db.getMerchantHints(30);
+    const hints = await merchantHintRepo.getTop(30);
     const hintObjects = hints.map((h) => ({
       canonicalName: h.canonicalName,
       category: h.category,
@@ -58,7 +58,7 @@ export async function processMessage(
     ];
 
     // Save user message
-    await db.saveMessage({
+    await messageRepo.save({
       id: nanoid(),
       role: 'user',
       content: userMessage,
@@ -101,7 +101,7 @@ export async function processMessage(
     }
 
     // Persist assistant message + any tool calls to messages table
-    await db.saveMessage({
+    await messageRepo.save({
       id: nanoid(),
       role: 'assistant',
       content: response.content,

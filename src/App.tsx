@@ -15,7 +15,7 @@ import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase, getStorageInfo } from './core/db/client';
 import type { StorageInfo } from './core/db/client';
 import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
-import { insertTransaction } from './core/db/client';
+import { transactionRepo } from './core/composition-root';
 import { rupeesToPaise } from './core/domain/money';
 import { parseSharedText } from './core/share-target';
 import { useDraftStore } from './features/drafts/drafts.store';
@@ -130,7 +130,7 @@ export default function App() {
         if (action === 'log' && suggestion) {
           upsertRuleFromSuggestion(suggestion);
           const today = format(new Date(), 'yyyy-MM-dd');
-          insertTransaction({
+          transactionRepo.insert({
             id: nanoid(),
             amount: rupeesToPaise(suggestion.typicalAmount ?? 0),
             type: 'expense',

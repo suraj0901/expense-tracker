@@ -1,34 +1,34 @@
 /**
- * ChatView — SmartHeader + SuggestionStrip + message feed + input.
+ * ChatView — SmartHeader + SuggestionStrip + transactions list + input.
  */
-import { useEffect, useRef, useState, useCallback, Fragment } from 'react';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { ArrowUp, Loader2, AlertTriangle, Key, X } from 'lucide-react';
 import { useChatStore } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
-import { MessageBubble } from './MessageBubble';
 import { SmartHeader } from './SmartHeader';
 import { SuggestionStrip } from './SuggestionStrip';
-import { DateSeparator, dateKey } from './DateSeparator';
 import { EmptyState } from './EmptyState';
+import { RecentTransactions } from './RecentTransactions';
 import { onSuggestion, type Suggestion } from '../../core/scheduler';
 import { DraftBanner } from '../drafts/DraftBanner';
 import { useDraftStore } from '../drafts/drafts.store';
 import type { DraftItem } from '../drafts/types';
 import { VoiceInput } from './VoiceInput';
+import { transactionRepo } from '../../core/composition-root';
 
 export function ChatView() {
   const {
-    messages, inputValue, isSending, error, isLoading,
-    setInput, loadMessages, sendMessage, clearError,
+    inputValue, isSending, error, isLoading, latestResponse,
+    setInput, loadMessages, sendMessage, clearError, clearLatestResponse,
   } = useChatStore();
 
   const { provider } = useSettingsStore();
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatMessagesRef = useRef<HTMLDivElement>(null);
+  const [hasTransactions, setHasTransactions] = useState<boolean | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const initialLoadRef = useRef(true);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
@@ -37,20 +37,8 @@ export function ChatView() {
   }, []);
 
   useEffect(() => {
-    const container = chatMessagesRef.current;
-    if (!container) return;
-
-    if (initialLoadRef.current) {
-      container.scrollTop = container.scrollHeight;
-      initialLoadRef.current = false;
-      return;
-    }
-
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    if (distanceFromBottom < 100) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isSending]);
+    transactionRepo.getRecent(1).then((txns) => setHasTransactions(txns.length > 0)).catch(() => setHasTransactions(false));
+  }, [refreshKey]);
 
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -90,9 +78,6 @@ export function ChatView() {
 
   const isConfigured = provider?.isConfigured() ?? false;
 
-  // Group messages by date for separators
-  let lastDateKey = '';
-
   return (
     <div className="chat-container">
       <SmartHeader refreshKey={refreshKey} />
@@ -124,46 +109,46 @@ export function ChatView() {
         </div>
       )}
 
-      <div className="chat-messages" ref={chatMessagesRef}>
-        {isLoading ? (
+      <div className="chat-content" ref={contentRef}>
+        {isLoading || hasTransactions === null ? (
           <div className="chat-empty">
             <div className="typing-indicator">
               <div className="dot" /><div className="dot" /><div className="dot" />
             </div>
           </div>
-        ) : messages.length === 0 ? (
-          <EmptyState onQuickLog={triggerRefresh} />
-        ) : (
+        ) : hasTransactions || latestResponse ? (
           <>
-            {messages.map((msg) => {
-              const dk = dateKey(msg.createdAt);
-              const showSeparator = dk !== lastDateKey;
-              lastDateKey = dk;
+            <RecentTransactions key={refreshKey} />
 
-              return (
-                <Fragment key={msg.id}>
-                  {showSeparator && <DateSeparator timestamp={msg.createdAt} />}
-                  <MessageBubble message={msg} />
-                </Fragment>
-              );
-            })}
-
-          </>
-        )}
-
-        {isSending && (
-          <div className="message assistant">
-            <div className="message-body">
-              <div className="message-bubble">
-                <div className="typing-indicator">
-                  <div className="dot" /><div className="dot" /><div className="dot" />
+            {latestResponse && (
+              <div className="ai-response-card">
+                <div className="ai-response-header">
+                  <span className="ai-response-label">AI Response</span>
+                  <button className="ai-response-dismiss" onClick={clearLatestResponse}>
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="ai-response-body">
+                  {latestResponse}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        <div ref={messagesEndRef} />
+            {isSending && (
+              <div className="message assistant">
+                <div className="message-body">
+                  <div className="message-bubble">
+                    <div className="typing-indicator">
+                      <div className="dot" /><div className="dot" /><div className="dot" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <EmptyState onQuickLog={triggerRefresh} />
+        )}
       </div>
 
       <div className="chat-input-container">
@@ -191,3 +176,4 @@ export function ChatView() {
     </div>
   );
 }
+

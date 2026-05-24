@@ -18,11 +18,13 @@ interface ChatState {
   isSending: boolean;
   error: string | null;
   isLoading: boolean;
+  latestResponse: string | null;
 
   // Actions
   setInput: (value: string) => void;
   loadMessages: () => Promise<void>;
   sendMessage: (provider: AIProvider) => Promise<AgentResponse | null>;
+  clearLatestResponse: () => void;
   undoDelete: (transactionId: string) => Promise<void>;
   deleteTransaction: (transactionId: string) => Promise<void>;
   updateTransactionCategory: (transactionId: string, category: string) => Promise<void>;
@@ -36,8 +38,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isSending: false,
   error: null,
   isLoading: true,
+  latestResponse: null,
 
   setInput: (value) => set({ inputValue: value }),
+
+  clearLatestResponse: () => set({ latestResponse: null }),
 
   loadMessages: async () => {
     try {
@@ -85,7 +90,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         responseLength: response.text.length,
       });
 
-      set({ isSending: false });
+      set({ isSending: false, latestResponse: response.text });
       return response;
     } catch (error) {
       const errorMessage =

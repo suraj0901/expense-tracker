@@ -4,7 +4,7 @@
  */
 import type {
   Transaction, Message, MerchantHint, Category, Goal,
-  MonthlySummary, CategoryBreakdownItem, BudgetStatusResult, StoredBackup,
+  MonthlySummary, CategoryBreakdownItem, BudgetStatusResult, StoredBackup, AppEvent,
 } from '../domain/types';
 import type { Paise } from '../domain/money';
 
@@ -108,4 +108,20 @@ export interface BackupRepository {
   restoreFromLocalBackup(date: string): boolean;
   processPendingRestore(): Promise<boolean>;
   deleteLocalBackup(date: string): void;
+}
+
+// ─── Event Repository ────────────────────────────────────────────────────
+
+export interface InsertEventParams {
+  id: string; type: string; title: string; body: string;
+  data?: Record<string, unknown> | null; status?: string;
+  createdAt: number;
+}
+
+export interface EventRepository {
+  insert(params: InsertEventParams): Promise<{ success: boolean; id: string }>;
+  getRecent(limit?: number): Promise<AppEvent[]>;
+  getAll(): Promise<AppEvent[]>;
+  updateStatus(id: string, status: string): Promise<void>;
+  dismissAll(type?: string): Promise<void>;
 }

@@ -9,6 +9,11 @@ import { EventBus } from './app/event-bus';
 import { ToolRegistry } from './app/tool-registry';
 import { ProviderRegistry } from './app/provider-registry';
 import type { ToolDependencies } from './app/tool-registry';
+import type { InsertTransactionParams, TransactionRepository } from './app/interfaces';
+import { nanoid } from 'nanoid';
+import { paiseToRupees } from './domain/money';
+import type { Paise } from './domain/money';
+import type { AppEvent } from './domain/types';
 
 import { createTransactionRepository } from './infrastructure/sqlite-transaction-repository';
 import { createMessageRepository } from './infrastructure/sqlite-message-repository';
@@ -17,6 +22,7 @@ import { createMerchantHintRepository } from './infrastructure/sqlite-merchant-h
 import { createGoalRepository } from './infrastructure/sqlite-goal-repository';
 import { createSummaryRepository } from './infrastructure/sqlite-summary-repository';
 import { createInsightRepository } from './infrastructure/sqlite-insight-repository';
+import { createEventRepository } from './infrastructure/sqlite-event-repository';
 
 import { storeExpenseTool } from './app/tools/store-expense.tool';
 import { storeIncomeTool } from './app/tools/store-income.tool';
@@ -42,8 +48,9 @@ import { LocalAIProvider } from './providers/local';
 // ─── Event Types ─────────────────────────────────────────────────────────
 
 type AppEvents = {
-  'transaction:created': [{ merchant: string | null; category: string }];
-  'transaction:updated': [{ merchant?: string; category?: string }];
+  'transaction:created': [{ merchant: string | null; category: string; amount: number; id: string }];
+  'transaction:updated': [{ merchant?: string; category?: string; id: string }];
+  'event:created': [{ event: AppEvent }];
 };
 
 // ─── Event Bus ───────────────────────────────────────────────────────────
@@ -59,11 +66,48 @@ export const merchantHintRepo = createMerchantHintRepository();
 export const goalRepo = createGoalRepository();
 export const summaryRepo = createSummaryRepository();
 export const insightRepo = createInsightRepository();
+export const eventRepo = createEventRepository();
+
+// Wrap transactionRepo with event emission — all tools and callers
+// that import transactionRepo will automatically emit events.
+const _rawRepo = transactionRepo;
+const enriched: TransactionRepository = {
+  ..._rawRepo,
+  async insert(params: InsertTransactionParams) {
+    const result = await _rawRepo.insert(params);
+    eventBus.emit('transaction:created', {
+      merchant: params.merchant ?? null,
+      category: params.category,
+      amount: params.amount,
+      id: params.id,
+    });
+    return result;
+  },
+  async update(id: string, params: import('./app/interfaces').UpdateTransactionParams) {
+    const result = await _rawRepo.update(id, params);
+    eventBus.emit('transaction:updated', {
+      merchant: params.merchant,
+      category: params.category,
+      id,
+    });
+    return result;
+  },
+};
+// Reassign the export so all consumers get the enriched version
+Object.assign(transactionRepo, enriched);
 
 // ─── Event Bus Wiring ────────────────────────────────────────────────────
 
 eventBus.on('transaction:created', (args) => {
   if (args.merchant) merchantHintRepo.upsert(args.merchant, args.category).catch(() => {});
+  eventRepo.insert({
+    id: nanoid(),
+    type: 'transaction_logged',
+    title: 'Transaction logged',
+    body: `₹${paiseToRupees(args.amount as Paise)} ${args.category}${args.merchant ? ` at ${args.merchant}` : ''}`,
+    data: { transactionId: args.id, category: args.category, amount: args.amount, merchant: args.merchant },
+    createdAt: Date.now(),
+  }).catch(() => {});
 });
 
 eventBus.on('transaction:updated', (args) => {

@@ -124,5 +124,24 @@ export async function initializeDatabase(): Promise<void> {
       });
     }
   }
+
+  await sqlocal.sql`
+    CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY, type TEXT NOT NULL,
+      title TEXT NOT NULL, body TEXT NOT NULL,
+      data TEXT, status TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL, acted_at INTEGER
+    )
+  `;
+  await sqlocal.sql`
+    CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at)
+  `;
+  await sqlocal.sql`
+    CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)
+  `;
+  await sqlocal.sql`
+    CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)
+  `;
+
   initialized = true;
 }

@@ -1,0 +1,123 @@
+.event-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ─── Event Card Base ────────────────────────────────────────────────── */
+
+.event-card {
+  background: var(--color-surface, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 10px 12px;
+  animation: messageIn 0.2s ease-out;
+  max-width: 92%;
+  align-self: flex-start;
+}
+
+.event-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.event-card-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.event-card-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text, #e0e0e0);
+  flex: 1;
+}
+
+.event-card-dismiss {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.event-card-dismiss:hover {
+  opacity: 1;
+  color: var(--color-text, #e0e0e0);
+}
+
+.event-card-body {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #9ca3af);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.event-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.event-card-btn {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--color-text-muted, #9ca3af);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.event-card-btn:hover {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--color-border-hover, rgba(255, 255, 255, 0.2));
+  color: var(--color-text, #e0e0e0);
+}
+
+.event-card-btn--primary {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.event-card-btn--primary:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* ─── Type-specific overrides ────────────────────────────────────────── */
+
+.event-card--transaction {
+  border-left: 3px solid var(--color-accent);
+}
+
+.event-card--suggestion {
+  border-left: 3px solid #8b5cf6;
+}
+
+.event-card--warning {
+  border-left: 3px solid var(--color-warning, #f59e0b);
+}
+
+.event-card--milestone {
+  border-left: 3px solid var(--color-success, #22c55e);
+}
+
+.event-card--insight {
+  border-left: 3px solid #06b6d4;
+}
+
+.event-card--merchant {
+  border-left: 3px solid #f97316;
+}
+
+.event-card--query {
+  border-left: 3px solid #8b5cf6;
+}

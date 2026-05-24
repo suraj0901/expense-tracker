@@ -7,8 +7,10 @@
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import { processAutoLogRules } from './recurring';
-import { transactionRepo, merchantHintRepo } from './composition-root';
+import { transactionRepo, merchantHintRepo, eventRepo, summaryRepo, goalRepo } from './composition-root';
 import { autoBackup } from './db/client';
+import { nanoid } from 'nanoid';
+import { checkBudgetWarnings, checkGoalMilestones } from './app/event-generators';
 
 export interface Suggestion {
   id: string;
@@ -48,6 +50,10 @@ class Scheduler {
     try {
       await processAutoLogRules();
 
+      // Run budget/goal checks
+      checkBudgetWarnings(summaryRepo, eventRepo);
+      checkGoalMilestones(goalRepo, eventRepo);
+
       const recent = await transactionRepo.getRecent(50);
       const groups = new Map<string, { amounts: number[]; merchant: string | null }>();
       for (const t of recent) {
@@ -65,14 +71,25 @@ class Scheduler {
         if (similar.length >= 3) {
           const avg = Math.round(similar.reduce((s, a) => s + a, 0) / similar.length);
           const mid = data.merchant ? ` at ${data.merchant}` : '';
-          this.emit({
+          const s: Suggestion = {
             id: `pattern-${category}-${avg}`,
             text: `~₹${avg} ${category}${mid}`,
             category,
             typicalAmount: avg,
             merchant: data.merchant ?? undefined,
             createdAt: Date.now(),
-          });
+          };
+          this.emit(s);
+
+          // Persist as event
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'recurring_suggestion',
+            title: `Recurring pattern: ${category}`,
+            body: `You've spent ~₹${avg} on ${category}${mid} ${similar.length} times recently. Want me to remember this?`,
+            data: { category, typicalAmount: avg, merchant: data.merchant, count: similar.length },
+            createdAt: Date.now(),
+          }).catch(() => {});
         }
       }
       const hints = await merchantHintRepo.getTop(20);
@@ -83,6 +100,15 @@ class Scheduler {
           text: `You've logged "${h.canonicalName}" ${h.useCount} times as ${h.category}. I'll auto-categorize future entries.`,
           createdAt: Date.now(),
         });
+
+        eventRepo.insert({
+          id: nanoid(),
+          type: 'merchant_mapping_ask',
+          title: `Merchant: ${h.canonicalName}`,
+          body: `Should "${h.canonicalName}" always be categorized as "${h.category}"? (used ${h.useCount} times)`,
+          data: { merchant: h.canonicalName, category: h.category, useCount: h.useCount },
+          createdAt: Date.now(),
+        }).catch(() => {});
       }
     } catch {
       // Scheduler failures are silent — don't bother the user

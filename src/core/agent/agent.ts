@@ -12,7 +12,7 @@ import type { AgentResponse, Message, ToolCallRecord } from '../domain/types';
 import { TOOL_DEFINITIONS } from './tools';
 import { executeTool } from './tool-executor';
 import { buildSystemPrompt } from './system-prompt';
-import { messageRepo, merchantHintRepo } from '../composition-root';
+import { messageRepo, merchantHintRepo, eventRepo } from '../composition-root';
 import { logger } from '../logger';
 
 /**
@@ -108,6 +108,20 @@ export async function processMessage(
       toolCalls: allToolCalls.length > 0 ? allToolCalls : null,
       createdAt: Date.now(),
     });
+
+    // Insert an ai_query_response event when it was a query (not a logging action)
+    if (!hasLoggingToolCall(allToolCalls) && response.content.length > 20) {
+      eventRepo.insert({
+        id: nanoid(),
+        type: 'ai_query_response',
+        title: 'AI Response',
+        body: response.content.length > 200
+          ? response.content.slice(0, 200) + '…'
+          : response.content,
+        data: { fullResponse: response.content, toolsUsed: allToolCalls.map(tc => tc.name) },
+        createdAt: Date.now(),
+      }).catch(() => {});
+    }
 
     logger.endTrace(traceId, 'agent:processMessage', 'success', {
       toolCallsCount: allToolCalls.length,

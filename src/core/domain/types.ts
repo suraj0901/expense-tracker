@@ -170,3 +170,36 @@ export interface StoredBackup {
   date: string;
   sizeBytes: number;
 }
+
+// ─── Events ──────────────────────────────────────────────────────────────
+
+export type EventType =
+  | 'transaction_logged'
+  | 'merchant_mapping_ask'
+  | 'recurring_suggestion'
+  | 'budget_warning'
+  | 'goal_milestone'
+  | 'monthly_insight'
+  | 'ai_query_response';
+
+export type EventStatus = 'pending' | 'dismissed' | 'acted';
+
+export interface AppEvent {
+  id: string;
+  type: EventType;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  status: EventStatus;
+  createdAt: number;
+  actedAt: number | null;
+}
+
+// ─── Unified Feed ────────────────────────────────────────────────────────
+
+export interface FeedItem {
+  kind: 'message' | 'event';
+  message?: Message;
+  event?: AppEvent;
+  timestamp: number;
+}

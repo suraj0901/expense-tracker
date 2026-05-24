@@ -6,10 +6,10 @@
  */
 
 import { create } from 'zustand';
-import type { Message, AgentResponse } from '../../core/domain/types';
+import type { Message, AgentResponse, FeedItem } from '../../core/domain/types';
 import { processMessage } from '../../core/agent/agent';
 import type { AIProvider } from '../../core/providers/types';
-import { messageRepo, transactionRepo } from '../../core/composition-root';
+import { messageRepo, transactionRepo, eventRepo } from '../../core/composition-root';
 import { logger } from '../../core/logger';
 import { useMessageQueueStore } from './messageQueue.store';
 
@@ -20,10 +20,13 @@ interface ChatState {
   error: string | null;
   isLoading: boolean;
   latestResponse: string | null;
+  feed: FeedItem[];
 
   // Actions
   setInput: (value: string) => void;
   loadMessages: () => Promise<void>;
+  loadFeed: () => Promise<void>;
+  refreshFeed: () => Promise<void>;
   sendMessage: (provider: AIProvider) => Promise<AgentResponse | null>;
   sendQueuedMessage: (content: string, provider: AIProvider) => Promise<void>;
   clearLatestResponse: () => void;
@@ -31,6 +34,8 @@ interface ChatState {
   deleteTransaction: (transactionId: string) => Promise<void>;
   updateTransactionCategory: (transactionId: string, category: string) => Promise<void>;
   updateTransactionFromDb: (transactionId: string) => Promise<void>;
+  dismissEvent: (id: string) => Promise<void>;
+  actOnEvent: (id: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -92,6 +97,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
   isLoading: true,
   latestResponse: null,
+  feed: [],
 
   setInput: (value) => set({ inputValue: value }),
 
@@ -105,6 +111,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       set({ error: 'Failed to load messages', isLoading: false });
       logger.error('chat:loadMessagesFailed', error instanceof Error ? error : new Error(String(error)));
+    }
+  },
+
+  loadFeed: async () => {
+    try {
+      const [msgs, evts] = await Promise.all([
+        messageRepo.getAll(),
+        eventRepo.getRecent(100),
+      ]);
+      const items: FeedItem[] = [
+        ...msgs.map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
+        ...evts.filter(e => e.status === 'pending').map(e => ({ kind: 'event' as const, event: e, timestamp: e.createdAt })),
+      ].sort((a, b) => a.timestamp - b.timestamp);
+      set({ feed: items, isLoading: false });
+      logger.debug('chat:loadFeed', { messages: msgs.length, events: evts.length, feed: items.length });
+    } catch (error) {
+      set({ error: 'Failed to load feed', isLoading: false });
+      logger.error('chat:loadFeedFailed', error instanceof Error ? error : new Error(String(error)));
+    }
+  },
+
+  refreshFeed: async () => {
+    try {
+      const [msgs, evts] = await Promise.all([
+        messageRepo.getAll(),
+        eventRepo.getRecent(100),
+      ]);
+      const items: FeedItem[] = [
+        ...msgs.map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
+        ...evts.filter(e => e.status === 'pending').map(e => ({ kind: 'event' as const, event: e, timestamp: e.createdAt })),
+      ].sort((a, b) => a.timestamp - b.timestamp);
+      set({ feed: items });
+    } catch {
+      // Best-effort refresh
     }
   },
 
@@ -169,6 +209,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
   updateTransactionFromDb: async (_transactionId) => {
     // Reload messages to reflect the change from DB
     await get().loadMessages();
+  },
+
+  dismissEvent: async (id: string) => {
+    try {
+      await eventRepo.updateStatus(id, 'dismissed');
+      await get().refreshFeed();
+    } catch {
+      console.error('[ChatStore] Event dismiss failed');
+    }
+  },
+
+  actOnEvent: async (id: string) => {
+    try {
+      await eventRepo.updateStatus(id, 'acted');
+      await get().refreshFeed();
+    } catch {
+      console.error('[ChatStore] Event act failed');
+    }
   },
 
   clearError: () => set({ error: null }),

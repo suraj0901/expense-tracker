@@ -76,3 +76,19 @@ export const insights = sqliteTable('insights', {
 }, (table) => ({
   pk: primaryKey(table.month, table.year),
 }));
+
+// ─── events ──────────────────────────────────────────────────────────────
+
+export const events = sqliteTable('events', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  // 'transaction_logged' | 'merchant_mapping_ask' | 'recurring_suggestion' |
+  // 'budget_warning' | 'goal_milestone' | 'monthly_insight' | 'ai_query_response'
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  data: text('data'), // JSON blob — type-specific payload
+  status: text('status').notNull().default('pending'),
+  // 'pending' | 'dismissed' | 'acted'
+  createdAt: integer('created_at').notNull(),
+  actedAt: integer('acted_at'), // nullable
+});

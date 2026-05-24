@@ -1,5 +1,5 @@
 /**
- * ChatView — SmartHeader + SuggestionStrip + transactions list + input.
+ * ChatView — SmartHeader + EventFeed + input.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -7,42 +7,41 @@ import { ArrowUp, Loader2, AlertTriangle, Key, X } from 'lucide-react';
 import { useChatStore } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
 import { SmartHeader } from './SmartHeader';
-import { SuggestionStrip } from './SuggestionStrip';
 import { EmptyState } from './EmptyState';
-import { RecentTransactions } from './RecentTransactions';
 import { OfflineBanner } from './OfflineBanner';
 import { useMessageQueueStore } from './messageQueue.store';
-import { onSuggestion, type Suggestion } from '../../core/scheduler';
 import { DraftBanner } from '../drafts/DraftBanner';
 import { useDraftStore } from '../drafts/drafts.store';
 import type { DraftItem } from '../drafts/types';
 import { VoiceInput } from './VoiceInput';
-import { transactionRepo } from '../../core/composition-root';
+import { EventFeed } from './EventFeed';
 
 export function ChatView() {
   const {
-    inputValue, isSending, error, isLoading, latestResponse,
-    setInput, loadMessages, sendMessage, clearError, clearLatestResponse, sendQueuedMessage,
+    inputValue, isSending, error, isLoading, feed,
+    setInput, loadFeed, refreshFeed, sendMessage, clearError, sendQueuedMessage,
+    dismissEvent, actOnEvent,
   } = useChatStore();
 
   const { provider } = useSettingsStore();
   const queueStore = useMessageQueueStore();
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [hasTransactions, setHasTransactions] = useState<boolean | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const drainLockRef = useRef(false);
-
-  useEffect(() => { loadMessages(); }, [loadMessages]);
-
-  useEffect(() => {
-    return onSuggestion((s) => setSuggestion(s));
-  }, []);
+  const initialLoadRef = useRef(false);
 
   useEffect(() => {
-    transactionRepo.getRecent(1).then((txns) => setHasTransactions(txns.length > 0)).catch(() => setHasTransactions(false));
-  }, [refreshKey]);
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      loadFeed();
+    }
+  }, [loadFeed]);
+
+  const triggerRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    refreshFeed();
+  }, [refreshFeed]);
 
   // Auto-drain queued messages when back online
   useEffect(() => {
@@ -65,11 +64,6 @@ export function ChatView() {
 
     drain();
   }, [queueStore.isOnline, queueStore.queue.length, provider, sendQueuedMessage, triggerRefresh]);
-
-  const triggerRefresh = useCallback(() => {
-    setRefreshKey((k) => k + 1);
-    loadMessages();
-  }, [loadMessages]);
 
   const handleSend = async () => {
     if (!provider) return;
@@ -100,19 +94,11 @@ export function ChatView() {
     useDraftStore.getState().remove(id);
   };
 
-  const handleSuggestionClear = useCallback(() => setSuggestion(null), []);
-
   const isConfigured = provider?.isConfigured() ?? false;
 
   return (
     <div className="chat-container">
       <SmartHeader refreshKey={refreshKey} />
-
-      <SuggestionStrip
-        suggestion={suggestion}
-        onClear={handleSuggestionClear}
-        onLogged={triggerRefresh}
-      />
 
       <DraftBanner onLog={handleDraftLog} onDismiss={handleDraftDismiss} />
 
@@ -138,29 +124,15 @@ export function ChatView() {
       )}
 
       <div className="chat-content" ref={contentRef}>
-        {isLoading || hasTransactions === null ? (
-          <div className="chat-empty">
-            <div className="typing-indicator">
-              <div className="dot" /><div className="dot" /><div className="dot" />
-            </div>
-          </div>
-        ) : hasTransactions || latestResponse ? (
+        {isLoading || (feed.length === 0 && isLoading) ? null : feed.length > 0 ? (
           <>
-            <RecentTransactions key={refreshKey} />
-
-            {latestResponse && (
-              <div className="ai-response-card">
-                <div className="ai-response-header">
-                  <span className="ai-response-label">AI Response</span>
-                  <button className="ai-response-dismiss" onClick={clearLatestResponse}>
-                    <X size={14} />
-                  </button>
-                </div>
-                <div className="ai-response-body">
-                  {latestResponse}
-                </div>
-              </div>
-            )}
+            <EventFeed
+              feed={feed}
+              isLoading={false}
+              onDismissEvent={dismissEvent}
+              onActEvent={actOnEvent}
+              contentRef={contentRef}
+            />
 
             {isSending && (
               <div className="message assistant">

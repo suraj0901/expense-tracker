@@ -13,7 +13,7 @@ import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
 import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase, getStorageInfo } from './core/db/client';
-import { initKvStore } from './core/platform/kv-store';
+import { initKvStore, kvGet } from './core/platform/kv-store';
 import type { StorageInfo } from './core/db/client';
 import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
 import { transactionRepo } from './core/composition-root';
@@ -21,6 +21,7 @@ import { rupeesToPaise } from './core/domain/money';
 import { parseSharedText } from './core/share-target';
 import { useDraftStore } from './features/drafts/drafts.store';
 import { upsertRuleFromSuggestion } from './core/recurring';
+import { OnboardingScreen } from './features/onboarding/OnboardingScreen';
 import { nanoid } from 'nanoid';
 import { format } from 'date-fns';
 
@@ -37,6 +38,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>(getRouteFromHash);
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [onboardingComplete, setOnboardingComplete] = useState(true); // default true to flash nothing while checking
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const {
@@ -48,12 +50,14 @@ export default function App() {
   const initApp = useCallback(async () => {
     try {
       await initKvStore();
+      const completed = kvGet('onboarding:completed') === 'true';
+      setOnboardingComplete(completed);
       await initializeDatabase();
       initSettings();
       const info = getStorageInfo();
       if (info) setStorageInfo(info);
       setDbReady(true);
-      startScheduler();
+      if (completed) startScheduler();
     } catch (error) {
       console.error('[App] Database initialization failed:', error);
       setDbError(
@@ -231,6 +235,19 @@ export default function App() {
           </p>
         </div>
       </div>
+    );
+  }
+
+  if (!onboardingComplete) {
+    return (
+      <OnboardingScreen
+        storageType={storageInfo?.storageType}
+        persisted={storageInfo?.persisted}
+        onComplete={() => {
+          setOnboardingComplete(true);
+          startScheduler();
+        }}
+      />
     );
   }
 

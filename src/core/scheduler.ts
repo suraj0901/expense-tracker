@@ -7,7 +7,7 @@
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import { processAutoLogRules } from './recurring';
-import { transactionRepo, merchantHintRepo, eventRepo, summaryRepo, goalRepo } from './composition-root';
+import { transactionRepo, merchantHintRepo, eventRepo, summaryRepo, goalRepo, insightRepo } from './composition-root';
 import { autoBackup } from './db/client';
 import { nanoid } from 'nanoid';
 import { checkBudgetWarnings, checkGoalMilestones } from './app/event-generators';
@@ -53,6 +53,26 @@ class Scheduler {
       // Run budget/goal checks
       checkBudgetWarnings(summaryRepo, eventRepo);
       checkGoalMilestones(goalRepo, eventRepo);
+
+      // Month-end insight check: if we're in the first 3 days of a month,
+      // create a monthly_insight event prompting the user to view insights
+      const now = new Date();
+      if (now.getDate() <= 3) {
+        const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+        const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const existing = await insightRepo.get(prevMonth, prevYear);
+        if (!existing) {
+          const monthName = new Date(prevYear, prevMonth - 1).toLocaleString('en-US', { month: 'long' });
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'monthly_insight',
+            title: `${monthName} ${prevYear} insights`,
+            body: `Your spending summary for ${monthName} is ready. Tap to view your insights.`,
+            data: { month: prevMonth, year: prevYear },
+            createdAt: Date.now(),
+          }).catch(() => {});
+        }
+      }
 
       const recent = await transactionRepo.getRecent(50);
       const groups = new Map<string, { amounts: number[]; merchant: string | null }>();

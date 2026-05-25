@@ -1,48 +1,76 @@
 /**
  * SuggestionStrip — horizontal scrollable chips for one-tap logging.
+ *
+ * Chips start as generic defaults and become personalized over time
+ * using the scoring algorithm from src/core/suggestions.ts.
  */
-import { useState, useRef, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, X } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { transactionRepo } from '../../core/composition-root';
 import { rupeesToPaise } from '../../core/domain/money';
-import { dismissSuggestion, type Suggestion } from '../../core/scheduler';
+import { getPersonalizedChips } from '../../core/suggestions';
+import type { Chip } from '../../core/domain/types';
 import { CategoryPicker } from './CategoryPicker';
 import { CategoryIcon } from './categoryIcons';
 
 interface SuggestionStripProps {
-  suggestion: Suggestion | null;
-  onClear: () => void;
+  isCollapsed: boolean;
+  dismissedIds: string[];
+  onDismiss: (id: string) => void;
   onLogged: () => void;
+  refreshTrigger: number;
 }
 
-export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStripProps) {
+export function SuggestionStrip({ isCollapsed, dismissedIds, onDismiss, onLogged, refreshTrigger }: SuggestionStripProps) {
+  const [chips, setChips] = useState<Chip[]>([]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [logging, setLogging] = useState<string | null>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
+  const initialLoadDone = useRef(false);
 
-  const handleLog = useCallback(async (s: Suggestion) => {
-    if (!s.category || s.typicalAmount === undefined) return;
-    setLogging(s.id);
+  const loadChips = useCallback(async () => {
+    const dismissedSet = new Set(dismissedIds);
+    const result = await getPersonalizedChips(dismissedSet);
+    setChips(result);
+  }, [dismissedIds]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      loadChips();
+    }
+  }, [loadChips]);
+
+  useEffect(() => {
+    if (refreshTrigger > 0) loadChips();
+  }, [refreshTrigger, loadChips]);
+
+  const handleLog = useCallback(async (chip: Chip) => {
+    if (!chip.category || chip.amount === undefined) return;
+    setLogging(chip.id);
     try {
       const id = nanoid();
       const today = new Date().toISOString().slice(0, 10);
       await transactionRepo.insert({
-        id, amount: rupeesToPaise(s.typicalAmount), type: 'expense',
-        category: s.category, merchant: s.merchant ?? null,
-        note: null, date: today,
-        createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false,
+        id, amount: rupeesToPaise(chip.amount), type: 'expense',
+        category: chip.category, merchant: chip.merchant ?? null,
+        note: null, description: null, tags: undefined,
+        date: today, createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false,
       });
-      dismissSuggestion(s.id);
-      onClear();
       onLogged();
     } catch {
-      // silent — don't interrupt the user
+      // silent
     } finally {
       setLogging(null);
     }
-  }, [onClear, onLogged]);
+  }, [onLogged]);
+
+  const handleDismiss = useCallback((chip: Chip) => {
+    onDismiss(chip.id);
+    setChips(prev => prev.filter(c => c.id !== chip.id));
+  }, [onDismiss]);
 
   const handleQuickAdd = useCallback(async (category: string) => {
     setQuickAddOpen(false);
@@ -50,58 +78,55 @@ export function SuggestionStrip({ suggestion, onClear, onLogged }: SuggestionStr
     const today = new Date().toISOString().slice(0, 10);
     await transactionRepo.insert({
       id, amount: rupeesToPaise(0), type: 'expense',
-      category, merchant: null, note: 'quick add',
+      category, merchant: null, note: 'quick add', description: null, tags: undefined,
       date: today, createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false,
     });
     onLogged();
   }, [onLogged]);
-
-  const handleDismiss = useCallback((s: Suggestion) => {
-    dismissSuggestion(s.id);
-    onClear();
-  }, [onClear]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
 
-  const handleTouchEnd = (e: React.TouchEvent, s: Suggestion) => {
+  const handleTouchEnd = (e: React.TouchEvent, chip: Chip) => {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-      handleDismiss(s);
+      handleDismiss(chip);
     }
   };
 
-  if (!suggestion) return null;
+  if (isCollapsed || chips.length === 0) return null;
 
   return (
     <>
       <div className="suggestion-strip">
         <div className="suggestion-strip-scroll">
-          {suggestion && (
+          {chips.map((chip) => (
             <button
-              className={`suggestion-chip-action ${logging === suggestion.id ? 'logging' : ''}`}
-              onClick={() => handleLog(suggestion)}
+              key={chip.id}
+              className={`suggestion-chip-action ${logging === chip.id ? 'logging' : ''}`}
+              onClick={() => handleLog(chip)}
               onTouchStart={handleTouchStart}
-              onTouchEnd={(e) => handleTouchEnd(e, suggestion)}
-              disabled={logging === suggestion.id}
+              onTouchEnd={(e) => handleTouchEnd(e, chip)}
+              disabled={logging === chip.id}
             >
-              {logging === suggestion.id ? (
+              {logging === chip.id ? (
                 <span className="chip-spinner" />
               ) : (
                 <>
-                  {suggestion.category && <CategoryIcon name={suggestion.category} className="chip-icon" />}
+                  {chip.category && <CategoryIcon name={chip.category} className="chip-icon" />}
                   <span className="chip-label">
-                    {suggestion.typicalAmount
-                      ? `₹${suggestion.typicalAmount} ${suggestion.category ?? ''}`
-                      : suggestion.text}
+                    ₹{chip.amount} {chip.label || chip.category}
                   </span>
                 </>
               )}
             </button>
-          )}
+          ))}
+          <button className="suggestion-chip-dismiss-all" onClick={() => chips.forEach(c => onDismiss(c.id))}>
+            <X size={14} />
+          </button>
           <button className="suggestion-chip-add" onClick={() => setQuickAddOpen(true)}>
             <Plus className="chip-icon" />
             <span className="chip-label">Add</span>

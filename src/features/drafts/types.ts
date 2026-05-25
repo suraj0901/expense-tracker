@@ -9,6 +9,7 @@ export interface DraftItem {
   merchant: string | null;
   date: string | null; // 'YYYY-MM-DD' or null
   createdAt: number;
+  source?: string; // 'sms_bank' | 'sms_upi' | 'sms_card' | 'generic'
 }
 
 export const DRAFT_QUEUE_KEY = 'expense-tracker:drafts';

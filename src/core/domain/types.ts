@@ -16,10 +16,20 @@ export interface Transaction {
   category: string;
   merchant: string | null;
   note: string | null;
+  description: string | null;
+  tags: string[];
   date: string; // 'YYYY-MM-DD'
   createdAt: number; // Unix ms
   updatedAt: number; // Unix ms
   isDeleted: boolean;
+}
+
+// ─── Transaction Tag ─────────────────────────────────────────────────────
+
+export interface TransactionTag {
+  id: string;
+  transactionId: string;
+  tag: string;
 }
 
 // ─── Category ────────────────────────────────────────────────────────────
@@ -77,6 +87,7 @@ export interface MerchantHint {
   category: string;
   useCount: number;
   lastUsedAt: number; // Unix ms
+  confirmStrategy: string; // 'auto' | 'ask' | 'ask_always'
 }
 
 // ─── Agent Types ─────────────────────────────────────────────────────────
@@ -202,4 +213,15 @@ export interface FeedItem {
   message?: Message;
   event?: AppEvent;
   timestamp: number;
+}
+
+// ─── Suggestion Chips ──────────────────────────────────────────────────
+
+export interface Chip {
+  id: string;
+  label: string;
+  category: string;
+  amount?: number;
+  merchant?: string;
+  confidence: number;
 }

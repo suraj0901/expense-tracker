@@ -31,6 +31,8 @@ export const storeExpenseTool: ToolHandler = {
       category: args.category as string,
       merchant: (args.merchant as string) ?? null,
       note: (args.note as string) ?? null,
+      description: (args.description as string) ?? null,
+      tags: args.tags as string[] | undefined,
       date: (args.date as string) ?? today,
       createdAt: Date.now(),
       updatedAt: Date.now(),

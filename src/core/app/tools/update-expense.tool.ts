@@ -26,6 +26,8 @@ export const updateExpenseTool: ToolHandler = {
       category: args.category as string | undefined,
       merchant: args.merchant as string | undefined,
       note: args.note as string | undefined,
+      description: (args.description as string | null) ?? undefined,
+      tags: args.tags as string[] | undefined,
       updatedAt: Date.now(),
     });
   },

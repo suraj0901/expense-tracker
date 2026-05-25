@@ -28,10 +28,21 @@ export const transactions = sqliteTable('transactions', {
     .references(() => categories.name),
   merchant: text('merchant'), // nullable
   note: text('note'), // nullable
+  description: text('description'), // nullable — AI-extracted human-readable summary
   date: text('date').notNull(), // 'YYYY-MM-DD'
   createdAt: integer('created_at').notNull(), // Unix ms
   updatedAt: integer('updated_at').notNull(), // Unix ms
   isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
+});
+
+// ─── transaction_tags ────────────────────────────────────────────────────
+
+export const transactionTags = sqliteTable('transaction_tags', {
+  id: text('id').primaryKey(),
+  transactionId: text('transaction_id')
+    .notNull()
+    .references(() => transactions.id),
+  tag: text('tag').notNull(), // lowercase, trimmed
 });
 
 // ─── messages ────────────────────────────────────────────────────────────
@@ -51,6 +62,7 @@ export const merchantHints = sqliteTable('merchant_hints', {
   category: text('category').notNull(), // last confirmed category
   useCount: integer('use_count').notNull().default(1),
   lastUsedAt: integer('last_used_at').notNull(),
+  confirmStrategy: text('confirm_strategy').notNull().default('auto'), // 'auto' | 'ask' | 'ask_always'
 });
 
 // ─── goals ────────────────────────────────────────────────────────────────

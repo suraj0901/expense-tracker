@@ -21,6 +21,10 @@ interface ChatState {
   isLoading: boolean;
   latestResponse: string | null;
   feed: FeedItem[];
+  includedItems: Array<{ id: string; type: string; label: string }>;
+  deleteUndo: { id: string; title: string } | null;
+  dismissedChips: string[];
+  chipRefresh: number;
 
   // Actions
   setInput: (value: string) => void;
@@ -31,11 +35,17 @@ interface ChatState {
   sendQueuedMessage: (content: string, provider: AIProvider) => Promise<void>;
   clearLatestResponse: () => void;
   undoDelete: (transactionId: string) => Promise<void>;
-  deleteTransaction: (transactionId: string) => Promise<void>;
+  deleteTransaction: (transactionId: string, transactionLabel: string) => Promise<void>;
+  clearDeleteUndo: () => void;
   updateTransactionCategory: (transactionId: string, category: string) => Promise<void>;
   updateTransactionFromDb: (transactionId: string) => Promise<void>;
   dismissEvent: (id: string) => Promise<void>;
   actOnEvent: (id: string) => Promise<void>;
+  addIncludedItem: (id: string, type: string, label: string) => void;
+  removeIncludedItem: (id: string) => void;
+  clearIncludedItems: () => void;
+  dismissChip: (id: string) => void;
+  triggerChipRefresh: () => void;
   clearError: () => void;
 }
 
@@ -48,23 +58,28 @@ async function executeSend(
 ): Promise<AgentResponse | null> {
   set({ isSending: true, error: null });
 
+  const includedItems = get().includedItems;
+  const userContent = includedItems.length > 0
+    ? `[Attached: ${includedItems.map(i => `${i.type} "${i.label}"`).join(', ')}]\n\n${trimmed}`
+    : trimmed;
+
   const userMsg: Message = {
     id: `temp-${Date.now()}`,
     role: 'user',
-    content: trimmed,
+    content: userContent,
     toolCalls: null,
     createdAt: Date.now(),
   };
-  set({ messages: [...history, userMsg] });
+  set({ messages: [...history, userMsg], includedItems: [] });
 
   try {
     logger.info('chat:sendMessage', {
       provider: provider.id,
-      messageLength: trimmed.length,
+      messageLength: userContent.length,
       historyLength: history.length,
     });
 
-    const response = await processMessage(trimmed, history, provider);
+    const response = await processMessage(userContent, history, provider);
 
     await get().loadMessages();
 
@@ -98,6 +113,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: true,
   latestResponse: null,
   feed: [],
+  includedItems: [],
+  deleteUndo: null,
+  dismissedChips: [],
+  chipRefresh: 0,
 
   setInput: (value) => set({ inputValue: value }),
 
@@ -185,18 +204,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
   undoDelete: async (transactionId) => {
     try {
       await transactionRepo.undoDelete(transactionId);
+      set({ deleteUndo: null });
+      await get().refreshFeed();
     } catch (error) {
       console.error('[ChatStore] Undo failed:', error);
     }
   },
 
-  deleteTransaction: async (transactionId) => {
+  deleteTransaction: async (transactionId, transactionLabel) => {
     try {
       await transactionRepo.softDelete(transactionId);
+      set({
+        deleteUndo: { id: transactionId, title: transactionLabel },
+      });
+      setTimeout(() => {
+        const current = get().deleteUndo;
+        if (current?.id === transactionId) {
+          set({ deleteUndo: null });
+        }
+      }, 5000);
+      await get().refreshFeed();
     } catch (error) {
       console.error('[ChatStore] Delete failed:', error);
     }
   },
+
+  clearDeleteUndo: () => set({ deleteUndo: null }),
 
   updateTransactionCategory: async (transactionId, category) => {
     try {
@@ -227,6 +260,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch {
       console.error('[ChatStore] Event act failed');
     }
+  },
+
+  addIncludedItem: (id, type, label) => {
+    const items = get().includedItems;
+    if (items.length >= 5) return;
+    if (items.some(i => i.id === id)) return;
+    set({ includedItems: [...items, { id, type, label }] });
+  },
+
+  removeIncludedItem: (id) => {
+    set({ includedItems: get().includedItems.filter(i => i.id !== id) });
+  },
+
+  clearIncludedItems: () => set({ includedItems: [] }),
+
+  dismissChip: (id) => {
+    const current = get().dismissedChips;
+    set({ dismissedChips: [...current, id] });
+  },
+
+  triggerChipRefresh: () => {
+    set({ chipRefresh: get().chipRefresh + 1 });
   },
 
   clearError: () => set({ error: null }),

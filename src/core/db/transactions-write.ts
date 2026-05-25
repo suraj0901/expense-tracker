@@ -4,26 +4,33 @@
 import { eq } from 'drizzle-orm';
 import * as schema from './schema';
 import { db } from './init';
+import { insertTags, upsertTagsForTransaction } from './transaction-tags';
 
 interface InsertTransactionParams {
   id: string; amount: number; type: string; category: string;
-  merchant?: string | null; note?: string | null; date: string;
-  createdAt: number; updatedAt: number; isDeleted: boolean;
+  merchant?: string | null; note?: string | null;
+  description?: string | null; tags?: string[];
+  date: string; createdAt: number; updatedAt: number; isDeleted: boolean;
 }
 
 export async function insertTransaction(params: InsertTransactionParams) {
   await db.insert(schema.transactions).values({
     id: params.id, amount: params.amount, type: params.type,
     category: params.category, merchant: params.merchant ?? null,
-    note: params.note ?? null, date: params.date,
-    createdAt: params.createdAt, updatedAt: params.updatedAt,
+    note: params.note ?? null, description: params.description ?? null,
+    date: params.date, createdAt: params.createdAt, updatedAt: params.updatedAt,
     isDeleted: params.isDeleted,
   });
+  if (params.tags && params.tags.length > 0) {
+    await insertTags(params.id, params.tags);
+  }
   return { success: true, id: params.id };
 }
 
 interface UpdateTransactionParams {
-  amount?: number; category?: string; merchant?: string; note?: string; updatedAt: number;
+  amount?: number; category?: string; merchant?: string;
+  note?: string; description?: string; tags?: string[];
+  updatedAt: number;
 }
 
 export async function updateTransaction(id: string, params: UpdateTransactionParams) {
@@ -32,7 +39,11 @@ export async function updateTransaction(id: string, params: UpdateTransactionPar
   if (params.category !== undefined) data.category = params.category;
   if (params.merchant !== undefined) data.merchant = params.merchant;
   if (params.note !== undefined) data.note = params.note;
+  if (params.description !== undefined) data.description = params.description;
   await db.update(schema.transactions).set(data).where(eq(schema.transactions.id, id));
+  if (params.tags !== undefined) {
+    await upsertTagsForTransaction(id, params.tags);
+  }
   return { success: true, id };
 }
 

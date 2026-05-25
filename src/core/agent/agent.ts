@@ -123,6 +123,10 @@ export async function processMessage(
       }).catch(() => {});
     }
 
+    // Merchant confidence check: if AI logged an expense with a merchant
+    // that's new or has low confidence, create a merchant_mapping_ask event
+    await checkMerchantConfidence(allToolCalls);
+
     logger.endTrace(traceId, 'agent:processMessage', 'success', {
       toolCallsCount: allToolCalls.length,
       toolCalls: allToolCalls.map((tc) => tc.name),
@@ -209,4 +213,66 @@ export function hasLoggingToolCall(toolCalls: ToolCallRecord[]): boolean {
   return toolCalls.some((tc) =>
     tc.name === 'store_expense' || tc.name === 'store_income'
   );
+}
+
+/** After logging, check if merchants need confirmation and create events. */
+async function checkMerchantConfidence(allToolCalls: ToolCallRecord[]) {
+  const hints = await merchantHintRepo.getTop(50);
+  const hintNames = new Set(hints.map(h => h.canonicalName));
+  const hintMap = new Map(hints.map(h => [h.canonicalName, h]));
+
+  for (const tc of allToolCalls) {
+    if (tc.name !== 'store_expense') continue;
+    const merchant = (tc.args?.merchant as string)?.toLowerCase()?.trim();
+    if (!merchant) continue;
+
+    const existingHint = hintMap.get(merchant);
+    if (existingHint && existingHint.confirmStrategy === 'ask_always') {
+      await eventRepo.insert({
+        id: nanoid(),
+        type: 'merchant_mapping_ask',
+        title: `Confirm: ${tc.args?.merchant as string}`,
+        body: `Is "${tc.args?.merchant as string}" always "${tc.args?.category as string}"? You previously asked to confirm every time.`,
+        data: {
+          merchant: tc.args?.merchant as string,
+          suggestedCategory: tc.args?.category as string,
+          transactionId: (tc.result as Record<string, unknown>)?.id,
+          historicalContext: `Previously categorized as "${existingHint.category}" (${existingHint.useCount} times)`,
+        },
+        createdAt: Date.now(),
+      }).catch(() => {});
+      continue;
+    }
+
+    if (!hintNames.has(merchant)) {
+      const similarHint = findSimilarMerchant(merchant, hints);
+      await eventRepo.insert({
+        id: nanoid(),
+        type: 'merchant_mapping_ask',
+        title: `New merchant: ${tc.args?.merchant as string}`,
+        body: `Should "${tc.args?.merchant as string}" always be categorized as "${tc.args?.category as string}"?`,
+        data: {
+          merchant: tc.args?.merchant as string,
+          suggestedCategory: tc.args?.category as string,
+          transactionId: (tc.result as Record<string, unknown>)?.id,
+          historicalContext: similarHint
+            ? `You usually categorize "${similarHint.canonicalName}" as "${similarHint.category}"`
+            : null,
+        },
+        createdAt: Date.now(),
+      }).catch(() => {});
+    }
+  }
+}
+
+function findSimilarMerchant(
+  merchant: string,
+  hints: Array<{ canonicalName: string; category: string; useCount: number; lastUsedAt: number; confirmStrategy: string }>
+): { canonicalName: string; category: string } | null {
+  for (const h of hints) {
+    if (h.canonicalName.includes(merchant) || merchant.includes(h.canonicalName)) {
+      return { canonicalName: h.canonicalName, category: h.category };
+    }
+  }
+  return null;
 }

@@ -12,18 +12,20 @@ import type { Paise } from '../domain/money';
 
 export interface InsertTransactionParams {
   id: string; amount: number; type: string; category: string;
-  merchant?: string | null; note?: string | null; date: string;
-  createdAt: number; updatedAt: number; isDeleted: boolean;
+  merchant?: string | null; note?: string | null;
+  description?: string | null; tags?: string[];
+  date: string; createdAt: number; updatedAt: number; isDeleted: boolean;
 }
 
 export interface UpdateTransactionParams {
   amount?: number; category?: string; merchant?: string;
-  note?: string; updatedAt: number;
+  note?: string; description?: string; tags?: string[];
+  updatedAt: number;
 }
 
 export interface QueryTransactionsParams {
   category?: string; start_date?: string; end_date?: string;
-  merchant?: string; limit?: number;
+  merchant?: string; limit?: number; tags?: string[];
 }
 
 export interface TransactionRepository {
@@ -33,6 +35,7 @@ export interface TransactionRepository {
   undoDelete(id: string): Promise<{ success: boolean; id: string }>;
   query(params: QueryTransactionsParams): Promise<Transaction[]>;
   getRecent(count?: number): Promise<Transaction[]>;
+  getById(id: string): Promise<Transaction | null>;
 }
 
 // ─── Message Repository ──────────────────────────────────────────────────
@@ -58,7 +61,7 @@ export interface CategoryRepository {
 // ─── Merchant Hint Repository ────────────────────────────────────────────
 
 export interface MerchantHintRepository {
-  upsert(merchant: string, category: string): Promise<void>;
+  upsert(merchant: string, category: string, confirmStrategy?: string): Promise<void>;
   getTop(limit?: number): Promise<MerchantHint[]>;
 }
 

@@ -382,6 +382,15 @@
   transform: scale(0.97);
 }
 
+.suggestion-chip-dismiss-all {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; min-width: 36px; height: 40px;
+  background: none; border: none; color: var(--color-text-muted);
+  cursor: pointer; opacity: 0.5;
+}
+
+.suggestion-chip-dismiss-all:hover { opacity: 1; color: var(--color-text-primary); }
+
 .chip-icon { width: 16px; height: 16px; flex-shrink: 0; }
 .chip-label { line-height: 1.3; }
 
@@ -655,3 +664,189 @@
   color: var(--color-text-primary);
   white-space: pre-wrap; word-break: break-word;
 }
+
+/* ─── Edit Transaction Modal ──────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(10, 10, 15, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+
+.modal-sheet {
+  width: 100%; max-width: 480px; max-height: 90dvh; overflow-y: auto;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 8px 16px 20px;
+  padding-bottom: calc(20px + var(--spacing-safe-bottom));
+  animation: slideUp 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: 12px;
+}
+
+.modal-header h3 {
+  font-size: 0.9375rem; font-weight: 600;
+}
+
+.modal-close {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  background: none; border: none; color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.modal-close:hover { color: var(--color-text-primary); background: var(--color-bg-card); }
+
+.modal-error {
+  padding: 8px 12px; margin-bottom: 12px;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem; color: var(--color-danger);
+}
+
+.modal-body {
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.modal-field {
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.modal-field label {
+  font-size: 0.6875rem; font-weight: 600; color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.modal-field input[type="text"],
+.modal-field input[type="number"],
+.modal-field input[type="date"] {
+  padding: 10px 12px; background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  color: var(--color-text-primary); font-size: 0.875rem;
+  font-family: var(--font-sans); outline: none;
+}
+
+.modal-field input:focus {
+  border-color: var(--color-accent); box-shadow: var(--shadow-glow);
+}
+
+.modal-category-btn {
+  padding: 10px 12px; background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  color: var(--color-text-primary); font-size: 0.875rem;
+  text-align: left; cursor: pointer; font-family: var(--font-sans);
+}
+
+.modal-category-btn:hover { border-color: var(--color-accent); }
+
+.modal-tags {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px 10px; background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  min-height: 44px;
+}
+
+.modal-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; background: var(--color-accent-muted);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-full); font-size: 0.6875rem;
+  color: var(--color-accent-text); font-weight: 500;
+}
+
+.modal-tag button {
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--color-accent-text);
+  cursor: pointer; padding: 1px; opacity: 0.6;
+}
+
+.modal-tag button:hover { opacity: 1; }
+
+.modal-tag-input {
+  flex: 1; min-width: 80px; background: none; border: none; outline: none;
+  color: var(--color-text-primary); font-size: 0.8125rem; padding: 2px 0;
+  font-family: var(--font-sans);
+}
+
+.modal-tag-input::placeholder { color: var(--color-text-muted); }
+
+.modal-footer {
+  display: flex; gap: 10px; margin-top: 20px;
+}
+
+.modal-btn-cancel, .modal-btn-save {
+  flex: 1; padding: 12px 16px; border-radius: var(--radius-full);
+  font-size: 0.8125rem; font-weight: 600; cursor: pointer;
+  border: none; font-family: var(--font-sans); transition: all 0.15s ease;
+}
+
+.modal-btn-cancel {
+  background: var(--color-bg-card); color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.modal-btn-cancel:hover { background: var(--color-bg-tertiary); }
+
+.modal-btn-save {
+  background: var(--color-accent); color: var(--color-text-inverse);
+}
+
+.modal-btn-save:hover:not(:disabled) { background: var(--color-accent-hover); }
+.modal-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Included Items Bar ──────────────────────────────────────────────── */
+
+.included-items-bar {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 12px 0;
+  background: var(--color-bg-secondary);
+}
+
+.included-item-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-full); font-size: 0.6875rem;
+  color: var(--color-info); font-weight: 500;
+}
+
+.included-item-chip button {
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--color-info);
+  cursor: pointer; padding: 1px; opacity: 0.6;
+}
+
+.included-item-chip button:hover { opacity: 1; }
+
+/* ─── Undo Toast ──────────────────────────────────────────────────────── */
+
+.undo-toast {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin: 0 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem; color: var(--color-text-secondary);
+}
+
+.undo-toast span {
+  flex: 1;
+}
+
+.undo-toast button {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font-size: 0.6875rem; font-weight: 600;
+  color: var(--color-accent); font-family: var(--font-sans);
+  padding: 4px 8px; border-radius: var(--radius-sm);
+}
+
+.undo-toast button:hover { background: var(--color-accent-muted); }

@@ -28,11 +28,13 @@ export const getExpensesTool: ToolHandler = {
       end_date: args.end_date as string | undefined,
       merchant: args.merchant as string | undefined,
       limit: args.limit as number | undefined,
+      tags: args.tags as string[] | undefined,
     });
     return results.map((t) => ({
       id: t.id, amount: paiseToRupees(t.amount as Paise),
       type: t.type, category: t.category,
-      merchant: t.merchant, note: t.note, date: t.date,
+      merchant: t.merchant, note: t.note, description: t.description,
+      tags: t.tags, date: t.date,
     }));
   },
 };

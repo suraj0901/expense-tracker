@@ -10,6 +10,7 @@ interface EventFeedProps {
   isLoading: boolean;
   onDismissEvent: (id: string) => void;
   onActEvent: (id: string, action: string) => void;
+  onEditEvent: (item: FeedItem) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -18,7 +19,7 @@ function getDayKey(ts: number): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, contentRef }: EventFeedProps) {
+export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, onEditEvent, contentRef }: EventFeedProps) {
   const wasAtBottom = useRef(true);
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, content
                 event={item.event}
                 onDismiss={onDismissEvent}
                 onAct={onActEvent}
+                onEdit={onEditEvent}
               />
             )}
           </div>

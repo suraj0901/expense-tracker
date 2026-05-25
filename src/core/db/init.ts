@@ -71,9 +71,25 @@ export async function initializeDatabase(): Promise<void> {
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY, amount INTEGER NOT NULL, type TEXT NOT NULL,
       category TEXT NOT NULL REFERENCES categories(name), merchant TEXT,
-      note TEXT, date TEXT NOT NULL, created_at INTEGER NOT NULL,
+      note TEXT, description TEXT, date TEXT NOT NULL, created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0
     )
+  `;
+  // Migration: add description column if upgrading from older schema
+  try {
+    await sqlocal.sql`ALTER TABLE transactions ADD COLUMN description TEXT`;
+  } catch { /* column already exists — ok */ }
+  await sqlocal.sql`
+    CREATE TABLE IF NOT EXISTS transaction_tags (
+      id TEXT PRIMARY KEY, transaction_id TEXT NOT NULL REFERENCES transactions(id),
+      tag TEXT NOT NULL
+    )
+  `;
+  await sqlocal.sql`
+    CREATE INDEX IF NOT EXISTS idx_transaction_tags_transaction_id ON transaction_tags(transaction_id)
+  `;
+  await sqlocal.sql`
+    CREATE INDEX IF NOT EXISTS idx_transaction_tags_tag ON transaction_tags(tag)
   `;
   await sqlocal.sql`
     CREATE TABLE IF NOT EXISTS messages (
@@ -84,9 +100,14 @@ export async function initializeDatabase(): Promise<void> {
   await sqlocal.sql`
     CREATE TABLE IF NOT EXISTS merchant_hints (
       canonical_name TEXT PRIMARY KEY, category TEXT NOT NULL,
-      use_count INTEGER NOT NULL DEFAULT 1, last_used_at INTEGER NOT NULL
+      use_count INTEGER NOT NULL DEFAULT 1, last_used_at INTEGER NOT NULL,
+      confirm_strategy TEXT NOT NULL DEFAULT 'auto'
     )
   `;
+  // Migration: add confirm_strategy column if upgrading from older schema
+  try {
+    await sqlocal.sql`ALTER TABLE merchant_hints ADD COLUMN confirm_strategy TEXT NOT NULL DEFAULT 'auto'`;
+  } catch { /* column already exists — ok */ }
   await sqlocal.sql`
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)
   `;

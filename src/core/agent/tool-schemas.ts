@@ -9,6 +9,8 @@ export const StoreExpenseSchema = z.object({
   merchant: z.string().optional().nullable(),
   date: z.string().optional(),
   note: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const StoreIncomeSchema = z.object({
@@ -16,6 +18,8 @@ export const StoreIncomeSchema = z.object({
   source: z.string(),
   date: z.string().optional(),
   note: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const GetExpensesSchema = z.object({
@@ -24,6 +28,7 @@ export const GetExpensesSchema = z.object({
   end_date: z.string().optional(),
   merchant: z.string().optional(),
   limit: z.number().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const GetMonthlySummarySchema = z.object({
@@ -46,6 +51,8 @@ export const UpdateExpenseSchema = z.object({
   category: z.string().optional(),
   merchant: z.string().optional(),
   note: z.string().optional(),
+  description: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const DeleteExpenseSchema = z.object({

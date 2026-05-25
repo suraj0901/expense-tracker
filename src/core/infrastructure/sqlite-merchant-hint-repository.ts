@@ -7,8 +7,8 @@ import { upsertMerchantHint, getMerchantHints } from '../db/merchant-hints';
 
 export function createMerchantHintRepository(): MerchantHintRepository {
   return {
-    async upsert(merchant: string, category: string): Promise<void> {
-      await upsertMerchantHint(merchant, category);
+    async upsert(merchant: string, category: string, confirmStrategy?: string): Promise<void> {
+      await upsertMerchantHint(merchant, category, confirmStrategy);
     },
     async getTop(limit: number = 30): Promise<MerchantHint[]> {
       return getMerchantHints(limit);

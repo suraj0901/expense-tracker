@@ -8,7 +8,7 @@ import type {
 } from '../app/interfaces';
 import type { Transaction } from '../domain/types';
 import { insertTransaction, updateTransaction, softDelete, undoDelete } from '../db/transactions-write';
-import { queryTransactions, getRecent } from '../db/transactions-read';
+import { queryTransactions, getRecent, getTransactionById } from '../db/transactions-read';
 
 export function createTransactionRepository(): TransactionRepository {
   return {
@@ -29,6 +29,10 @@ export function createTransactionRepository(): TransactionRepository {
     },
     async getRecent(count: number = 10): Promise<Transaction[]> {
       return getRecent(count) as Promise<Transaction[]>;
+    },
+    async getById(id: string): Promise<Transaction | null> {
+      const result = await getTransactionById(id);
+      return result as Transaction | null;
     },
   };
 }

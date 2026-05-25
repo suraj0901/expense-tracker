@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ArrowUp, Loader2, AlertTriangle, Key, X } from 'lucide-react';
+import { ArrowUp, Loader2, AlertTriangle, Key, X, Undo2 } from 'lucide-react';
 import { useChatStore } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
 import { SmartHeader } from './SmartHeader';
@@ -14,18 +14,25 @@ import { DraftBanner } from '../drafts/DraftBanner';
 import { useDraftStore } from '../drafts/drafts.store';
 import type { DraftItem } from '../drafts/types';
 import { VoiceInput } from './VoiceInput';
+import { SuggestionStrip } from './SuggestionStrip';
 import { EventFeed } from './EventFeed';
+import { EditTransactionModal } from './EditTransactionModal';
+import { merchantHintRepo } from '../../core/composition-root';
+import type { FeedItem } from '../../core/domain/types';
 
 export function ChatView() {
   const {
-    inputValue, isSending, error, isLoading, feed,
-    setInput, loadFeed, refreshFeed, sendMessage, clearError, sendQueuedMessage,
-    dismissEvent, actOnEvent,
+    inputValue, isSending, error, isLoading, feed, includedItems, deleteUndo,
+    dismissedChips, chipRefresh, setInput, loadFeed, refreshFeed, sendMessage,
+    clearError, sendQueuedMessage, dismissEvent, actOnEvent, deleteTransaction,
+    undoDelete, clearDeleteUndo, addIncludedItem, removeIncludedItem,
+    dismissChip, triggerChipRefresh,
   } = useChatStore();
 
   const { provider } = useSettingsStore();
   const queueStore = useMessageQueueStore();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editItem, setEditItem] = useState<FeedItem | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const drainLockRef = useRef(false);
@@ -94,6 +101,58 @@ export function ChatView() {
     useDraftStore.getState().remove(id);
   };
 
+  const handleActEvent = (eventId: string, action: string) => {
+    if (action === 'delete') {
+      const event = feed.find(f => f.event?.id === eventId)?.event;
+      const data = event?.data as Record<string, unknown> | null;
+      const txnId = data?.transactionId as string;
+      const label = data?.category ? `${String(data.category)} ₹${String(data.amount ? Number(data.amount) / 100 : 0)}` : 'transaction';
+      if (txnId) deleteTransaction(txnId, label);
+    } else if (action === 'include') {
+      const event = feed.find(f => f.event?.id === eventId)?.event;
+      const data = event?.data as Record<string, unknown> | null;
+      const txnId = data?.transactionId as string;
+      if (txnId) {
+        const rawAmt = Number(data?.amount ?? 0);
+        const amt = rawAmt > 0 ? `₹${(rawAmt / 100).toFixed(0)}` : '';
+        const merchant = data?.merchant ? ` at ${String(data.merchant)}` : '';
+        addIncludedItem(txnId, 'Transaction', `${amt}${merchant}`);
+      }
+    } else if (action.startsWith('confirm:')) {
+      const event = feed.find(f => f.event?.id === eventId)?.event;
+      const data = event?.data as Record<string, unknown> | null;
+      const category = action.replace('confirm:', '');
+      const merchant = data?.merchant as string;
+      if (merchant && category) {
+        merchantHintRepo.upsert(merchant, category);
+      }
+      dismissEvent(eventId);
+    } else if (action === 'ask_always') {
+      const event = feed.find(f => f.event?.id === eventId)?.event;
+      const data = event?.data as Record<string, unknown> | null;
+      const merchant = data?.merchant as string;
+      const category = data?.suggestedCategory as string;
+      if (merchant && category) {
+        merchantHintRepo.upsert(merchant, category, 'ask_always');
+      }
+      dismissEvent(eventId);
+    } else if (action === 'pick_category') {
+      // Store the event ID for category picker context
+      actOnEvent(eventId);
+    } else {
+      actOnEvent(eventId);
+    }
+  };
+
+  const handleEditEvent = (item: FeedItem) => {
+    setEditItem(item);
+  };
+
+  const handleEditSaved = () => {
+    setEditItem(null);
+    triggerRefresh();
+  };
+
   const isConfigured = provider?.isConfigured() ?? false;
 
   return (
@@ -103,6 +162,14 @@ export function ChatView() {
       <DraftBanner onLog={handleDraftLog} onDismiss={handleDraftDismiss} />
 
       <OfflineBanner />
+
+      <SuggestionStrip
+        isCollapsed={inputValue.length > 0}
+        dismissedIds={dismissedChips}
+        onDismiss={dismissChip}
+        onLogged={triggerRefresh}
+        refreshTrigger={chipRefresh}
+      />
 
       {!isConfigured && (
         <div className="setup-banner">
@@ -130,7 +197,8 @@ export function ChatView() {
               feed={feed}
               isLoading={false}
               onDismissEvent={dismissEvent}
-              onActEvent={actOnEvent}
+              onActEvent={handleActEvent}
+              onEditEvent={handleEditEvent}
               contentRef={contentRef}
             />
 
@@ -150,6 +218,27 @@ export function ChatView() {
           <EmptyState onQuickLog={triggerRefresh} />
         )}
       </div>
+
+      {includedItems.length > 0 && (
+        <div className="included-items-bar">
+          {includedItems.map((item) => (
+            <span key={item.id} className="included-item-chip">
+              {item.label}
+              <button onClick={() => removeIncludedItem(item.id)}><X size={12} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {deleteUndo && (
+        <div className="undo-toast">
+          <span>Deleted: {deleteUndo.title}</span>
+          <button onClick={() => undoDelete(deleteUndo.id)}>
+            <Undo2 size={14} /> Undo
+          </button>
+          <button onClick={clearDeleteUndo}><X size={14} /></button>
+        </div>
+      )}
 
       <div className="chat-input-container">
         <div className="chat-input-wrapper">
@@ -173,6 +262,14 @@ export function ChatView() {
           </button>
         </div>
       </div>
+
+      {editItem && (
+        <EditTransactionModal
+          item={editItem}
+          onClose={() => setEditItem(null)}
+          onSaved={handleEditSaved}
+        />
+      )}
     </div>
   );
 }

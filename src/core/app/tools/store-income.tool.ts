@@ -30,6 +30,8 @@ export const storeIncomeTool: ToolHandler = {
       category: (args.source as string) ?? 'Income',
       merchant: null,
       note: (args.note as string) ?? null,
+      description: (args.description as string) ?? null,
+      tags: args.tags as string[] | undefined,
       date: (args.date as string) ?? today,
       createdAt: Date.now(),
       updatedAt: Date.now(),

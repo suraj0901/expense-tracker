@@ -26,7 +26,12 @@ export interface AutoLogRule {
   createdAt: number;
 }
 
+export interface DismissedRule extends AutoLogRule {
+  dismissedAt: number;
+}
+
 const STORAGE_KEY = 'expense-tracker:auto-log-rules';
+const DISMISSED_KEY = 'expense-tracker:dismissed-rules';
 
 function loadRules(): AutoLogRule[] {
   try {
@@ -37,6 +42,17 @@ function loadRules(): AutoLogRule[] {
 
 function saveRules(rules: AutoLogRule[]): void {
   kvSet(STORAGE_KEY, JSON.stringify(rules));
+}
+
+function loadDismissed(): DismissedRule[] {
+  try {
+    const raw = kvGet(DISMISSED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveDismissed(rules: DismissedRule[]): void {
+  kvSet(DISMISSED_KEY, JSON.stringify(rules));
 }
 
 export function getAutoLogRules(): AutoLogRule[] {
@@ -112,6 +128,7 @@ export async function processAutoLogRules(): Promise<number> {
       category: rule.category,
       merchant: rule.merchant,
       note: 'auto-logged',
+      description: null, tags: undefined,
       date: today,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -120,4 +137,41 @@ export async function processAutoLogRules(): Promise<number> {
     autoLogged++;
   }
   return autoLogged;
+}
+
+/** Get pending suggestions from scheduler events — rules not yet acted on. */
+export function getPendingSuggestions(): AutoLogRule[] {
+  const allRules = loadRules();
+  return allRules.filter(r => !r.enabled);
+}
+
+export function enableAutoLogRule(id: string): void {
+  const rules = loadRules().map(r =>
+    r.id === id ? { ...r, enabled: true } : r
+  );
+  saveRules(rules);
+}
+
+export function getDismissedRules(): DismissedRule[] {
+  return loadDismissed();
+}
+
+export function dismissRule(rule: AutoLogRule): void {
+  // Remove from active
+  removeAutoLogRule(rule.id);
+  // Add to dismissed
+  const dismissed = loadDismissed();
+  dismissed.push({ ...rule, dismissedAt: Date.now(), enabled: false });
+  saveDismissed(dismissed);
+}
+
+export function restoreRule(id: string): void {
+  const dismissed = loadDismissed();
+  const rule = dismissed.find(r => r.id === id);
+  if (!rule) return;
+  saveDismissed(dismissed.filter(r => r.id !== id));
+  const { dismissedAt, ...restored } = rule;
+  const rules = loadRules();
+  rules.push({ ...restored, enabled: false });
+  saveRules(rules);
 }

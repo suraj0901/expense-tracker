@@ -121,3 +121,13 @@
 .event-card--query {
   border-left: 3px solid #8b5cf6;
 }
+
+.event-card-context {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}

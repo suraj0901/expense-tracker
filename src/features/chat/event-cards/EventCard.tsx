@@ -1,15 +1,16 @@
-import type { AppEvent } from '../../../core/domain/types';
+import type { AppEvent, FeedItem } from '../../../core/domain/types';
 
 interface EventCardProps {
   event: AppEvent;
   onDismiss: (id: string) => void;
   onAct: (id: string, action: string) => void;
+  onEdit: (item: FeedItem) => void;
 }
 
-export function EventCard({ event, onDismiss, onAct }: EventCardProps) {
+export function EventCard({ event, onDismiss, onAct, onEdit }: EventCardProps) {
   switch (event.type) {
     case 'transaction_logged':
-      return <TransactionLoggedCard event={event} onDismiss={onDismiss} onAct={onAct} />;
+      return <TransactionLoggedCard event={event} onDismiss={onDismiss} onAct={onAct} onEdit={onEdit} />;
     case 'recurring_suggestion':
       return <RecurringSuggestionCard event={event} onDismiss={onDismiss} onAct={onAct} />;
     case 'budget_warning':
@@ -27,7 +28,7 @@ export function EventCard({ event, onDismiss, onAct }: EventCardProps) {
   }
 }
 
-function TransactionLoggedCard({ event, onDismiss, onAct }: EventCardProps) {
+function TransactionLoggedCard({ event, onDismiss, onAct, onEdit }: EventCardProps) {
   return (
     <div className="event-card event-card--transaction">
       <div className="event-card-header">
@@ -37,7 +38,7 @@ function TransactionLoggedCard({ event, onDismiss, onAct }: EventCardProps) {
       </div>
       <div className="event-card-body">{event.body}</div>
       <div className="event-card-actions">
-        <button className="event-card-btn" onClick={() => onAct(event.id, 'edit')}>Edit</button>
+        <button className="event-card-btn" onClick={() => onEdit({ kind: 'event', event, timestamp: event.createdAt })}>Edit</button>
         <button className="event-card-btn" onClick={() => onAct(event.id, 'delete')}>Delete</button>
         <button className="event-card-btn event-card-btn--primary" onClick={() => onAct(event.id, 'include')}>Include in chat</button>
       </div>
@@ -119,7 +120,9 @@ function MonthlyInsightCard({ event, onDismiss, onAct }: EventCardProps) {
 
 function MerchantMappingCard({ event, onDismiss, onAct }: EventCardProps) {
   const d = event.data as Record<string, unknown> | null;
-  const category = (d?.category as string) ?? 'this category';
+  const merchant = (d?.merchant as string) ?? 'this merchant';
+  const category = (d?.suggestedCategory as string) ?? 'this category';
+  const historicalContext = d?.historicalContext as string | null;
   return (
     <div className="event-card event-card--merchant">
       <div className="event-card-header">
@@ -127,12 +130,18 @@ function MerchantMappingCard({ event, onDismiss, onAct }: EventCardProps) {
         <span className="event-card-title">{event.title}</span>
         <button className="event-card-dismiss" onClick={() => onDismiss(event.id)}>×</button>
       </div>
-      <div className="event-card-body">{event.body}</div>
+      <div className="event-card-body">
+        {event.body}
+        {historicalContext && (
+          <div className="event-card-context">{historicalContext}</div>
+        )}
+      </div>
       <div className="event-card-actions">
         <button className="event-card-btn event-card-btn--primary" onClick={() => onAct(event.id, `confirm:${category}`)}>
           Yes, always "{category}"
         </button>
         <button className="event-card-btn" onClick={() => onAct(event.id, 'pick_category')}>Pick category</button>
+        <button className="event-card-btn" onClick={() => onAct(event.id, 'ask_always')}>Always ask</button>
         <button className="event-card-btn" onClick={() => onDismiss(event.id)}>Dismiss</button>
       </div>
     </div>

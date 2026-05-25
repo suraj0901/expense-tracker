@@ -6,11 +6,12 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, BarChart3, Settings, AlertTriangle, X, RefreshCw } from 'lucide-react';
+import { MessageCircle, BarChart3, Settings, AlertTriangle, X, RefreshCw, Repeat } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { ChatView } from './features/chat/ChatView';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { SettingsView } from './features/settings/SettingsView';
+import { RecurringView } from './features/recurring/RecurringView';
 import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase, getStorageInfo } from './core/db/client';
 import { initKvStore, kvGet } from './core/platform/kv-store';
@@ -25,11 +26,12 @@ import { OnboardingScreen } from './features/onboarding/OnboardingScreen';
 import { nanoid } from 'nanoid';
 import { format } from 'date-fns';
 
-type Route = 'chat' | 'dashboard' | 'settings';
+type Route = 'chat' | 'dashboard' | 'recurring' | 'settings';
 
 function getRouteFromHash(): Route {
   const hash = window.location.hash.replace('#', '').replace('/', '');
   if (hash === 'dashboard') return 'dashboard';
+  if (hash === 'recurring') return 'recurring';
   if (hash === 'settings') return 'settings';
   return 'chat';
 }
@@ -304,6 +306,7 @@ export default function App() {
         <div key={route} className="page-enter">
           {route === 'chat' && <ChatView />}
           {route === 'dashboard' && <DashboardView />}
+          {route === 'recurring' && <RecurringView />}
           {route === 'settings' && <SettingsView />}
         </div>
       </div>
@@ -322,6 +325,13 @@ export default function App() {
         >
           <BarChart3 className="nav-icon" />
           Dashboard
+        </button>
+        <button
+          className={`nav-item ${route === 'recurring' ? 'active' : ''}`}
+          onClick={() => navigate('recurring')}
+        >
+          <Repeat className="nav-icon" />
+          Recurring
         </button>
         <button
           className={`nav-item ${route === 'settings' ? 'active' : ''}`}

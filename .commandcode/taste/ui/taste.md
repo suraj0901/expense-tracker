@@ -1,0 +1,14 @@
+# ui
+- Highlight important fields like amount and category in transaction cards — apply basic visual hierarchy principles. Confidence: 0.70
+- Render AI markdown responses through a markdown viewer, not as plain text. Confidence: 0.70
+- Display feed items in reverse-chronological order — newest transactions/events at the top. Confidence: 0.70
+- Use tabs (not filter pills) for switching between All / Transactions / Queries views in the chat feed. Confidence: 0.60
+- Prefer compact and cohesive chat UI — unify horizontal padding across sections, keep headers small, minimize dead space in date separators, tighten card padding/gaps, and merge related UI areas (like suggestion chips into input area). Confidence: 0.70
+- In drill-down/category detail views, place the total amount in the header (right-aligned) and show the transaction count as subtext under the category title instead of in a separate summary card. Confidence: 0.70
+- Avoid redundant budget alert notifications when the same information is already visible through the progress bar in the transaction UI. Confidence: 0.65
+- Remove rounded corners from transaction and event cards — use sharp corners throughout the chat UI. Confidence: 0.65
+- Display tags horizontally within cards to utilize available space rather than stacking them vertically. Confidence: 0.65
+- When the user submits a query or log request, show a thinking/loading placeholder at the top of the feed while the AI processes. Confidence: 0.70
+- In SmartHeader, keep today's expense large and prominent but do NOT wrap it in a pill/badge — use clean text styling without colored backgrounds or borders. Confidence: 0.70
+- For TransactionCard layout: place the time above the amount (right side), tags alongside the category name, and the description/note as subtext beneath the category. Confidence: 0.65
+- Maintain horizontal padding/margins on both sides of transaction cards — do not make cards completely edge-to-edge. Confidence: 0.70

@@ -1,30 +1,45 @@
 /**
- * Agent loop — the entire application intelligence.
+ * Agent loop — thin wrapper over the middleware pipeline.
  *
- * processMessage replaces the extraction pipeline, query classifier,
- * pattern engine, suggestion engine, query template library, and
- * report generator from v1.0. About 50 lines of core logic.
+ * processMessage() composes a pipeline of named middleware stages.
+ * The actual processing logic lives in middleware.ts.
  */
 
 import { nanoid } from 'nanoid';
-import type { AIProvider, ProviderMessage, ProviderResponse } from '../providers/types';
-import type { AgentResponse, Message, ToolCallRecord } from '../domain/types';
-import { TOOL_DEFINITIONS } from './tools';
-import { executeTool } from './tool-executor';
-import { buildSystemPrompt } from './system-prompt';
-import { messageRepo, merchantHintRepo, eventRepo } from '../composition-root';
+import type { AIProvider } from '../providers/types';
+import type { AgentResponse, Message } from '../domain/types';
+import {
+  MiddlewarePipeline,
+  type AgentContext,
+  loadMerchantHintsMiddleware,
+  buildMessagesMiddleware,
+  persistUserMessageMiddleware,
+  spendingGuardAugmentMiddleware,
+  callAIProviderMiddleware,
+  enforceSpendingGuardMiddleware,
+  persistResponseMiddleware,
+  createEventsMiddleware,
+  checkMerchantConfidenceMiddleware,
+  proactiveSuggestionsMiddleware,
+} from './middleware';
 import { logger } from '../logger';
 
-/**
- * Process a user message through the AI agent loop.
- *
- * 1. Inject merchant hints for cross-session memory
- * 2. Build system prompt + last 20 messages
- * 3. Call AI provider
- * 4. Execute any tool calls (agentic loop)
- * 5. Persist messages to DB
- * 6. Return response
- */
+export { hasSpendingIntent, hasLoggingToolCall } from './middleware';
+
+const pipeline = new MiddlewarePipeline();
+pipeline.compose([
+  loadMerchantHintsMiddleware,
+  buildMessagesMiddleware,
+  persistUserMessageMiddleware,
+  spendingGuardAugmentMiddleware,
+  callAIProviderMiddleware,
+  enforceSpendingGuardMiddleware,
+  persistResponseMiddleware,
+  createEventsMiddleware,
+  checkMerchantConfidenceMiddleware,
+  proactiveSuggestionsMiddleware,
+]);
+
 export async function processMessage(
   userMessage: string,
   history: Message[],
@@ -37,105 +52,28 @@ export async function processMessage(
   });
 
   try {
-    // Inject merchant hints for cross-session memory
-    const hints = await merchantHintRepo.getTop(30);
-    const hintObjects = hints.map((h) => ({
-      canonicalName: h.canonicalName,
-      category: h.category,
-      useCount: h.useCount,
-      lastUsedAt: h.lastUsedAt,
-    }));
-    const context = buildSystemPrompt(hintObjects);
+    const ctx: AgentContext = {
+      userMessage,
+      history,
+      provider,
+      traceId,
+      messages: [],
+      response: { content: '', hasToolCalls: false, toolCalls: [], raw: null },
+      allToolCalls: [],
+      spendingDetected: false,
+    };
 
-    // Build message array: system + last 20 messages + new user message
-    const messages: ProviderMessage[] = [
-      { role: 'system', content: context },
-      ...history.slice(-20).map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-      { role: 'user', content: userMessage },
-    ];
-
-    // Save user message
-    await messageRepo.save({
-      id: nanoid(),
-      role: 'user',
-      content: userMessage,
-      createdAt: Date.now(),
-    });
-
-    // Detect spending/income intent for guard enforcement
-    const spendingDetected = hasSpendingIntent(userMessage);
-
-    // Augment user message with logging directive when spending detected
-    if (spendingDetected) {
-      logger.debug('agent:spendingIntentDetected', { traceId, userMessage: userMessage.slice(0, 80) });
-      messages[messages.length - 1] = {
-        role: 'user',
-        content: `[REMINDER: You MUST call store_expense() or store_income() for any amounts mentioned. Never end your turn without calling these tools.]\n\n${userMessage}`,
-      };
-    }
-
-    // Call AI provider
-    let response: ProviderResponse = await provider.chat(messages, TOOL_DEFINITIONS);
-
-    // Collect all tool calls for the response
-    const allToolCalls: ToolCallRecord[] = [];
-
-    // Agentic loop — AI may call multiple tools in sequence
-    response = await executeToolLoop(response, messages, provider, allToolCalls, traceId);
-
-    // Guard: if spending was mentioned but no logging tool was called, nudge once
-    if (spendingDetected && !hasLoggingToolCall(allToolCalls)) {
-      logger.warn('agent:guardTriggered', {
-        traceId,
-        toolCallsSoFar: allToolCalls.map((tc) => tc.name),
-      });
-      messages.push({
-        role: 'user',
-        content: 'CRITICAL: You must call store_expense() or store_income() now. The user mentioned spending or earning money — log it immediately using the appropriate tool.',
-      });
-      const guardResponse = await provider.chat(messages, TOOL_DEFINITIONS);
-      await executeToolLoop(guardResponse, messages, provider, allToolCalls, traceId);
-    }
-
-    // Persist assistant message + any tool calls to messages table
-    await messageRepo.save({
-      id: nanoid(),
-      role: 'assistant',
-      content: response.content,
-      toolCalls: allToolCalls.length > 0 ? allToolCalls : null,
-      createdAt: Date.now(),
-    });
-
-    // Insert an ai_query_response event when it was a query (not a logging action)
-    if (!hasLoggingToolCall(allToolCalls) && response.content.length > 20) {
-      eventRepo.insert({
-        id: nanoid(),
-        type: 'ai_query_response',
-        title: 'AI Response',
-        body: response.content.length > 200
-          ? response.content.slice(0, 200) + '…'
-          : response.content,
-        data: { fullResponse: response.content, toolsUsed: allToolCalls.map(tc => tc.name) },
-        createdAt: Date.now(),
-      }).catch(() => {});
-    }
-
-    // Merchant confidence check: if AI logged an expense with a merchant
-    // that's new or has low confidence, create a merchant_mapping_ask event
-    await checkMerchantConfidence(allToolCalls);
+    const result = await pipeline.run(ctx);
 
     logger.endTrace(traceId, 'agent:processMessage', 'success', {
-      toolCallsCount: allToolCalls.length,
-      toolCalls: allToolCalls.map((tc) => tc.name),
-      responseLength: response.content.length,
+      toolCallsCount: result.allToolCalls.length,
+      toolCalls: result.allToolCalls.map((tc) => tc.name),
+      responseLength: result.response.content.length,
     });
 
     return {
-      text: response.content,
-      toolsUsed: allToolCalls,
+      text: result.response.content,
+      toolsUsed: result.allToolCalls,
     };
   } catch (error) {
     logger.endTrace(traceId, 'agent:processMessage', 'error', {
@@ -143,142 +81,4 @@ export async function processMessage(
     });
     throw error;
   }
-}
-
-/** Execute the tool-call loop until the AI responds with text only. */
-async function executeToolLoop(
-  response: ProviderResponse,
-  messages: ProviderMessage[],
-  provider: AIProvider,
-  allToolCalls: ToolCallRecord[],
-  traceId: string
-): Promise<ProviderResponse> {
-  const MAX_ITERATIONS = 8;
-  let loopIteration = 0;
-  while (response.hasToolCalls) {
-    loopIteration++;
-    if (loopIteration > MAX_ITERATIONS) {
-      logger.warn('agent:toolLoopMaxIterations', { traceId, iterations: loopIteration });
-      response = { content: 'I ran into an issue processing your request.', hasToolCalls: false, toolCalls: [], raw: null };
-      break;
-    }
-    logger.info('agent:toolLoopIteration', {
-      traceId,
-      iteration: loopIteration,
-      toolNames: response.toolCalls.map((tc) => tc.name),
-      hasText: response.content.length > 0,
-    });
-
-    const toolResults = await Promise.all(
-      response.toolCalls.map((tc) => executeTool(tc, traceId))
-    );
-    for (let i = 0; i < response.toolCalls.length; i++) {
-      allToolCalls.push({
-        id: response.toolCalls[i].id,
-        name: response.toolCalls[i].name,
-        args: response.toolCalls[i].args,
-        result: toolResults[i].result,
-      });
-    }
-    messages.push({
-      role: 'assistant',
-      content: response.content,
-      toolCalls: response.toolCalls.map((tc) => ({
-        id: tc.id, name: tc.name, args: tc.args,
-      })),
-    });
-    for (let i = 0; i < response.toolCalls.length; i++) {
-      const tr = toolResults[i];
-      messages.push({
-        role: 'tool',
-        toolCallId: tr.toolCallId,
-        content: JSON.stringify(tr.error ? { error: tr.error } : tr.result),
-      });
-    }
-    response = await provider.chat(messages, TOOL_DEFINITIONS);
-  }
-  return response;
-}
-
-/** Detect whether the user message mentions spending or earning money. */
-export function hasSpendingIntent(message: string): boolean {
-  const patterns = [
-    /₹\d+/,
-    /\d+(\.\d+)?\s*(rs|rupees|rupaye)\b/i,
-    /\d+(\.\d+)?\s*(k|lakh|lac|L)\b/i,
-    /\b(spent|paid|gave|bought|purchased|cost|bill|kharcha|expense)\b/i,
-    /\b(received|got paid|salary|income|earned|kamaya|credit|deposit)\b/i,
-    /\b(auto|chai|lunch|dinner|breakfast|coffee|tea|cab|uber|ola|swiggy|zomato)\b/i,
-    /\[Auto-parsed:/,
-  ];
-  return patterns.some((p) => p.test(message));
-}
-
-/** Check if any tool call in the list is a logging operation. */
-export function hasLoggingToolCall(toolCalls: ToolCallRecord[]): boolean {
-  return toolCalls.some((tc) =>
-    tc.name === 'store_expense' || tc.name === 'store_income'
-  );
-}
-
-/** After logging, check if merchants need confirmation and create events. */
-async function checkMerchantConfidence(allToolCalls: ToolCallRecord[]) {
-  const hints = await merchantHintRepo.getTop(50);
-  const hintNames = new Set(hints.map(h => h.canonicalName));
-  const hintMap = new Map(hints.map(h => [h.canonicalName, h]));
-
-  for (const tc of allToolCalls) {
-    if (tc.name !== 'store_expense') continue;
-    const merchant = (tc.args?.merchant as string)?.toLowerCase()?.trim();
-    if (!merchant) continue;
-
-    const existingHint = hintMap.get(merchant);
-    if (existingHint && existingHint.confirmStrategy === 'ask_always') {
-      await eventRepo.insert({
-        id: nanoid(),
-        type: 'merchant_mapping_ask',
-        title: `Confirm: ${tc.args?.merchant as string}`,
-        body: `Is "${tc.args?.merchant as string}" always "${tc.args?.category as string}"? You previously asked to confirm every time.`,
-        data: {
-          merchant: tc.args?.merchant as string,
-          suggestedCategory: tc.args?.category as string,
-          transactionId: (tc.result as Record<string, unknown>)?.id,
-          historicalContext: `Previously categorized as "${existingHint.category}" (${existingHint.useCount} times)`,
-        },
-        createdAt: Date.now(),
-      }).catch(() => {});
-      continue;
-    }
-
-    if (!hintNames.has(merchant)) {
-      const similarHint = findSimilarMerchant(merchant, hints);
-      await eventRepo.insert({
-        id: nanoid(),
-        type: 'merchant_mapping_ask',
-        title: `New merchant: ${tc.args?.merchant as string}`,
-        body: `Should "${tc.args?.merchant as string}" always be categorized as "${tc.args?.category as string}"?`,
-        data: {
-          merchant: tc.args?.merchant as string,
-          suggestedCategory: tc.args?.category as string,
-          transactionId: (tc.result as Record<string, unknown>)?.id,
-          historicalContext: similarHint
-            ? `You usually categorize "${similarHint.canonicalName}" as "${similarHint.category}"`
-            : null,
-        },
-        createdAt: Date.now(),
-      }).catch(() => {});
-    }
-  }
-}
-
-function findSimilarMerchant(
-  merchant: string,
-  hints: Array<{ canonicalName: string; category: string; useCount: number; lastUsedAt: number; confirmStrategy: string }>
-): { canonicalName: string; category: string } | null {
-  for (const h of hints) {
-    if (h.canonicalName.includes(merchant) || merchant.includes(h.canonicalName)) {
-      return { canonicalName: h.canonicalName, category: h.category };
-    }
-  }
-  return null;
 }

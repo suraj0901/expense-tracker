@@ -1,7 +1,7 @@
 .event-feed {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 /* ─── Event Card Base ────────────────────────────────────────────────── */
@@ -9,11 +9,10 @@
 .event-card {
   background: var(--color-surface, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 0;
+  padding: 8px 10px;
   animation: messageIn 0.2s ease-out;
-  max-width: 92%;
-  align-self: flex-start;
+  width: 100%;
 }
 
 .event-card-header {
@@ -94,10 +93,6 @@
 
 /* ─── Type-specific overrides ────────────────────────────────────────── */
 
-.event-card--transaction {
-  border-left: 3px solid var(--color-accent);
-}
-
 .event-card--suggestion {
   border-left: 3px solid #8b5cf6;
 }
@@ -116,10 +111,6 @@
 
 .event-card--merchant {
   border-left: 3px solid #f97316;
-}
-
-.event-card--query {
-  border-left: 3px solid #8b5cf6;
 }
 
 .event-card-context {

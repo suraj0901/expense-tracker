@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, BarChart3, Settings, AlertTriangle, X, RefreshCw, Repeat } from 'lucide-react';
+import { MessageCircle, BarChart3, Settings, AlertTriangle, X, RefreshCw, Repeat, Sun, Moon } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { ChatView } from './features/chat/ChatView';
 import { DashboardView } from './features/dashboard/DashboardView';
@@ -16,7 +16,7 @@ import { useSettingsStore } from './features/settings/settings.store';
 import { initializeDatabase, getStorageInfo } from './core/db/client';
 import { initKvStore, kvGet } from './core/platform/kv-store';
 import type { StorageInfo } from './core/db/client';
-import { startScheduler, tick, onSuggestion, dismissSuggestion } from './core/scheduler';
+import { startScheduler, setPatternAnalyzer, tick, onSuggestion, dismissSuggestion, onTimedReminder } from './core/scheduler';
 import { transactionRepo } from './core/composition-root';
 import { rupeesToPaise } from './core/domain/money';
 import { parseSharedText } from './core/share-target';
@@ -43,6 +43,10 @@ export default function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(true); // default true to flash nothing while checking
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const stored = localStorage.getItem('expense-tracker-theme');
+    return stored === 'light' ? 'light' : 'dark';
+  });
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -71,6 +75,16 @@ export default function App() {
   useEffect(() => {
     initApp();
   }, [initApp]);
+
+  // Wire AI pattern detection into scheduler when provider is available
+  useEffect(() => {
+    const { provider } = useSettingsStore.getState();
+    if (!provider?.isConfigured()) return;
+
+    import('./core/agent/proactive-agent').then(({ analyzePatterns }) => {
+      setPatternAnalyzer((candidates, txns) => analyzePatterns(candidates, txns, provider));
+    });
+  }, [initSettings]);
 
   // Handle incoming Web Share Target data (SMS/bank shares)
   useEffect(() => {
@@ -131,11 +145,33 @@ export default function App() {
         return;
       }
       if (event.data?.type === 'NOTIFICATION_ACTION') {
-        const { action, suggestion } = event.data;
-        if (action === 'dismiss' && suggestion?.id) {
-          dismissSuggestion(suggestion.id);
+        const { action, suggestion, reminder } = event.data;
+        if (action === 'dismiss') {
+          if (reminder?.id) {
+            import('./core/pattern-reminders').then(({ dismissReminder }) => dismissReminder(reminder.id));
+          }
+          if (suggestion?.id) dismissSuggestion(suggestion.id);
         }
-        if (action === 'log' && suggestion) {
+        if (action === 'log' && (suggestion || reminder)) {
+          const s = suggestion || reminder;
+          const today = format(new Date(), 'yyyy-MM-dd');
+          if (reminder?.id) {
+            import('./core/pattern-reminders').then(({ markReminderMatched }) => markReminderMatched(reminder.id));
+          }
+          transactionRepo.insert({
+            id: nanoid(),
+            amount: rupeesToPaise(s.typicalAmount ?? 0),
+            type: 'expense',
+            category: s.category ?? 'Other',
+            merchant: s.merchant ?? null,
+            note: null,
+            date: today,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isDeleted: false,
+          });
+        }
+        if (action === 'create-rule' && suggestion) {
           upsertRuleFromSuggestion(suggestion);
           const today = format(new Date(), 'yyyy-MM-dd');
           transactionRepo.insert({
@@ -157,23 +193,24 @@ export default function App() {
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, []);
 
-  // Show notification when scheduler finds a suggestion
+  // Show rule-creation notification when scheduler finds an untimed pattern
   useEffect(() => {
-    async function showNotification(s: {
+    async function showRuleSuggestion(s: {
       id: string;
       text: string;
       category?: string;
       typicalAmount?: number;
       merchant?: string;
+      notificationBody: string;
     }) {
       const registration = await navigator.serviceWorker.ready;
       await registration.showNotification('Expense Tracker', {
-        body: `Looks like your usual: ${s.text} — want me to log it?`,
+        body: s.notificationBody,
         icon: '/favicon.svg',
         tag: s.id,
-        data: s,
+        data: { ...s, notificationType: 'rule-creation' },
         actions: [
-          { action: 'log', title: 'Log it' },
+          { action: 'create-rule', title: 'Create rule' },
           { action: 'dismiss', title: 'Dismiss' },
         ],
       } as NotificationOptions);
@@ -184,11 +221,47 @@ export default function App() {
       if (Notification.permission !== 'granted') {
         Notification.requestPermission().then((p) => {
           if (p !== 'granted') return;
-          showNotification(s);
+          showRuleSuggestion(s);
         });
         return;
       }
-      showNotification(s);
+      showRuleSuggestion(s);
+    });
+    return unsub;
+  }, []);
+
+  // Show timed-log notification when scheduler fires a pending reminder
+  useEffect(() => {
+    async function showTimedReminder(r: {
+      id: string;
+      category: string;
+      typicalAmount: number;
+      merchant: string | null;
+      notificationBody: string;
+    }) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('Expense Tracker', {
+        body: r.notificationBody,
+        icon: '/favicon.svg',
+        tag: r.id,
+        data: { ...r, notificationType: 'timed-log', suggestion: r, reminder: r },
+        actions: [
+          { action: 'log', title: 'Log it' },
+          { action: 'dismiss', title: 'Dismiss' },
+        ],
+      } as NotificationOptions);
+    }
+
+    const unsub = onTimedReminder((r) => {
+      if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') {
+        Notification.requestPermission().then((p) => {
+          if (p !== 'granted') return;
+          showTimedReminder(r);
+        });
+        return;
+      }
+      showTimedReminder(r);
     });
     return unsub;
   }, []);
@@ -206,6 +279,18 @@ export default function App() {
     window.location.hash = r === 'chat' ? '/' : `/${r}`;
     setRoute(r);
   };
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('expense-tracker-theme', next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   if (dbError) {
     return (
@@ -301,6 +386,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <div className="app-header">
+        <span className="app-header-title">ExpenseTracker</span>
+        <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
 
       <div className="app-content">
         <div key={route} className="page-enter">

@@ -60,37 +60,79 @@ interface ParsedResponse {
 
 function parseResponse(content: string): ParsedResponse {
   const toolCalls: ParsedResponse['toolCalls'] = [];
-  let hasToolCalls = false;
+  const openTag = '<tool_call>';
+  const closeTag = '</tool_call>';
 
-  // Check for tool_call tags
-  const tagStart = content.indexOf(TOOL_CALL_OPEN);
-  if (tagStart === -1) {
+  let searchFrom = 0;
+  const blocks: string[] = [];
+
+  while (true) {
+    const startIdx = content.indexOf(openTag, searchFrom);
+    if (startIdx === -1) break;
+
+    const jsonStart = startIdx + openTag.length;
+    const endIdx = content.indexOf(closeTag, jsonStart);
+    const jsonText = endIdx !== -1
+      ? content.slice(jsonStart, endIdx).trim()
+      : content.slice(jsonStart).trim();
+
+    blocks.push(jsonText);
+    searchFrom = endIdx !== -1 ? endIdx + closeTag.length : content.length;
+  }
+
+  if (blocks.length === 0) {
     return { message: content.trim(), toolCalls: [], hasToolCalls: false };
   }
 
-  // Extract all tool_call blocks
-  const regex = /<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/g;
-  let match;
-  while ((match = regex.exec(content)) !== null) {
+  for (const block of blocks) {
     try {
-      const parsed = JSON.parse(match[1]);
+      // Extract JSON by counting braces — handles nested objects/arrays
+      const jsonStr = extractBalancedJson(block);
+      if (!jsonStr) continue;
+      const parsed = JSON.parse(jsonStr);
       if (parsed.name && parsed.arguments) {
         toolCalls.push({ name: parsed.name, args: parsed.arguments });
-        hasToolCalls = true;
       }
     } catch {
       // Skip malformed JSON
     }
   }
 
-  // Return remaining text after stripping tool_call blocks
-  const cleanText = content.replace(regex, '').trim();
+  // Strip all <tool_call>...</tool_call> blocks from text
+  const cleanText = content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
 
   return {
     message: cleanText,
     toolCalls,
-    hasToolCalls: hasToolCalls && toolCalls.length > 0,
+    hasToolCalls: toolCalls.length > 0,
   };
+}
+
+/** Extract balanced JSON from text by counting braces. Handles nested objects and arrays. */
+function extractBalancedJson(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+
+  return null;
 }
 
 // ─── Download State ─────────────────────────────────────────────────────

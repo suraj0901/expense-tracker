@@ -173,12 +173,14 @@ export function DashboardView() {
   const monthLabel = format(currentDate, 'MMM yyyy');
 
   if (drillCategory) {
+    const drillBudget = budgetStatus?.items.find((b) => b.category === drillCategory);
     return (
       <CategoryTransactionsView
         category={drillCategory}
         month={month}
         year={year}
         onBack={() => setDrillCategory(null)}
+        budget={drillBudget}
       />
     );
   }
@@ -375,7 +377,9 @@ export function DashboardView() {
           <div className="chart-card">
             <h3>Category Breakdown</h3>
             <div className="category-list">
-              {summary.categoryBreakdown.map((cat, i) => (
+              {summary.categoryBreakdown.map((cat, i) => {
+                  const catBudget = budgetStatus?.items.find((b) => b.category === cat.category);
+                  return (
                   <div
                     key={cat.category}
                     className="category-item category-item--clickable"
@@ -396,6 +400,26 @@ export function DashboardView() {
                           }}
                         />
                       </div>
+                      {catBudget && (
+                        <div className="cat-budget-info">
+                          <div className="budget-bar">
+                            <div
+                              className="budget-bar-fill"
+                              style={{
+                                width: `${Math.min(catBudget.percentUsed, 100)}%`,
+                                background: catBudget.percentUsed >= 100
+                                  ? 'var(--color-danger)'
+                                  : catBudget.percentUsed >= 75
+                                    ? 'var(--color-warning)'
+                                    : 'var(--color-accent)',
+                              }}
+                            />
+                          </div>
+                          <span className="cat-budget-text">
+                            {formatINR(catBudget.spent)} of {formatINR(catBudget.budgetAmount)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div>
@@ -405,7 +429,7 @@ export function DashboardView() {
                       <ChevronRightIcon size={16} className="cat-chevron" />
                     </div>
                   </div>
-                ))}
+                )})}
             </div>
           </div>
         </>

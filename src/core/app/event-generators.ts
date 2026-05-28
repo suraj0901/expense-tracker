@@ -1,38 +1,5 @@
 import { nanoid } from 'nanoid';
-import { paiseToRupees } from '../domain/money';
-import type { Paise } from '../domain/money';
-import type { EventRepository, GoalRepository, SummaryRepository } from './interfaces';
-
-export async function checkBudgetWarnings(
-  summaryRepo: SummaryRepository,
-  eventRepo: EventRepository
-): Promise<void> {
-  try {
-    const status = await summaryRepo.getBudgetStatus();
-    for (const item of status.items) {
-      if (item.percentUsed >= 80) {
-        const remainingRupees = paiseToRupees(item.remaining as Paise);
-        const budgetRupees = paiseToRupees(item.budgetAmount as Paise);
-        await eventRepo.insert({
-          id: nanoid(),
-          type: 'budget_warning',
-          title: `Budget alert: ${item.category}`,
-          body: `You've used ${item.percentUsed}% of your ${item.category} budget (₹${budgetRupees} limit). ₹${remainingRupees} remaining.`,
-          data: {
-            category: item.category,
-            percentUsed: item.percentUsed,
-            remaining: item.remaining,
-            budgetAmount: item.budgetAmount,
-            spent: item.spent,
-          },
-          createdAt: Date.now(),
-        });
-      }
-    }
-  } catch {
-    // Budget checks are best-effort — don't block anything
-  }
-}
+import type { EventRepository, GoalRepository } from './interfaces';
 
 const MILESTONE_THRESHOLDS = [0.25, 0.5, 0.75, 1.0];
 

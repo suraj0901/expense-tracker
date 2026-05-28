@@ -3,7 +3,7 @@
  */
 import type { MerchantHintRepository } from '../app/interfaces';
 import type { MerchantHint } from '../domain/types';
-import { upsertMerchantHint, getMerchantHints } from '../db/merchant-hints';
+import { upsertMerchantHint, getMerchantHints, getAllMerchantHints, updateMerchantHint, deleteMerchantHint } from '../db/merchant-hints';
 
 export function createMerchantHintRepository(): MerchantHintRepository {
   return {
@@ -12,6 +12,15 @@ export function createMerchantHintRepository(): MerchantHintRepository {
     },
     async getTop(limit: number = 30): Promise<MerchantHint[]> {
       return getMerchantHints(limit);
+    },
+    async getAll(): Promise<MerchantHint[]> {
+      return getAllMerchantHints();
+    },
+    async update(canonicalName: string, fields: { category?: string; confirmStrategy?: string }): Promise<boolean> {
+      return updateMerchantHint(canonicalName, fields);
+    },
+    async delete(canonicalName: string): Promise<void> {
+      await deleteMerchantHint(canonicalName);
     },
   };
 }

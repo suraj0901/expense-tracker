@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { FeedItem } from "@/core/domain/types";
 import { transactionRepo } from "@/core/composition-root";
@@ -16,45 +16,20 @@ export function EditTransactionModal({
   onClose,
   onSaved,
 }: EditTransactionModalProps) {
-  const event = item.event;
-  const data = event?.data as Record<string, unknown> | null;
-  const transactionId = (data?.transactionId as string) ?? "";
+  const txn = item.transaction;
+  const transactionId = txn?.id ?? "";
 
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState((data?.category as string) ?? "");
-  const [merchant, setMerchant] = useState((data?.merchant as string) ?? "");
-  const [note, setNote] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [amount, setAmount] = useState(txn ? String(paiseToRupees(txn.amount as Paise)) : "");
+  const [category, setCategory] = useState(txn?.category ?? "");
+  const [merchant, setMerchant] = useState(txn?.merchant ?? "");
+  const [note, setNote] = useState(txn?.note ?? "");
+  const [description, setDescription] = useState(txn?.description ?? "");
+  const [date, setDate] = useState(txn?.date ?? "");
+  const [tags, setTags] = useState<string[]>(txn?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  const loadTransaction = useCallback(async () => {
-    if (!transactionId || loaded) return;
-    try {
-      const txn = await transactionRepo.getById(transactionId);
-      if (txn) {
-        setAmount(String(paiseToRupees(txn.amount as Paise)));
-        setCategory(txn.category);
-        setMerchant(txn.merchant ?? "");
-        setNote(txn.note ?? "");
-        setDescription(txn.description ?? "");
-        setDate(txn.date);
-        setTags(txn.tags ?? []);
-      }
-      setLoaded(true);
-    } catch {
-      setLoaded(true);
-    }
-  }, [transactionId, loaded]);
-
-  useEffect(() => {
-    loadTransaction();
-  }, [loadTransaction]);
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase().replace(/\s+/g, "-");

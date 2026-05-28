@@ -39,6 +39,21 @@ import { getGoalsTool } from './app/tools/get-goals.tool';
 import { deleteGoalTool } from './app/tools/delete-goal.tool';
 import { listCategoriesTool } from './app/tools/list-categories.tool';
 import { createCategoryTool } from './app/tools/create-category.tool';
+import { updateCategoryTool } from './app/tools/update-category.tool';
+import { deleteCategoryTool } from './app/tools/delete-category.tool';
+import { setBudgetTool } from './app/tools/set-budget.tool';
+import { getBudgetsTool } from './app/tools/get-budgets.tool';
+import { deleteBudgetTool } from './app/tools/delete-budget.tool';
+import { getSpendingTrendTool } from './app/tools/get-spending-trend.tool';
+import { getMerchantMappingsTool } from './app/tools/get-merchant-mappings.tool';
+import { updateMerchantMappingTool } from './app/tools/update-merchant-mapping.tool';
+import { deleteMerchantMappingTool } from './app/tools/delete-merchant-mapping.tool';
+import { getAutoLogRulesTool } from './app/tools/get-auto-log-rules.tool';
+import { enableAutoLogRuleTool } from './app/tools/enable-auto-log-rule.tool';
+import { disableAutoLogRuleTool } from './app/tools/disable-auto-log-rule.tool';
+import { deleteAutoLogRuleTool } from './app/tools/delete-auto-log-rule.tool';
+import { getEventFeedTool } from './app/tools/get-event-feed.tool';
+import { getInsightsTool } from './app/tools/get-insights.tool';
 
 import { AnthropicProvider } from './providers/anthropic';
 import { GeminiProvider } from './providers/gemini';
@@ -133,6 +148,21 @@ toolRegistry.register(getGoalsTool);
 toolRegistry.register(deleteGoalTool);
 toolRegistry.register(listCategoriesTool);
 toolRegistry.register(createCategoryTool);
+toolRegistry.register(updateCategoryTool);
+toolRegistry.register(deleteCategoryTool);
+toolRegistry.register(setBudgetTool);
+toolRegistry.register(getBudgetsTool);
+toolRegistry.register(deleteBudgetTool);
+toolRegistry.register(getSpendingTrendTool);
+toolRegistry.register(getMerchantMappingsTool);
+toolRegistry.register(updateMerchantMappingTool);
+toolRegistry.register(deleteMerchantMappingTool);
+toolRegistry.register(getAutoLogRulesTool);
+toolRegistry.register(enableAutoLogRuleTool);
+toolRegistry.register(disableAutoLogRuleTool);
+toolRegistry.register(deleteAutoLogRuleTool);
+toolRegistry.register(getEventFeedTool);
+toolRegistry.register(getInsightsTool);
 
 // ─── Tool Dependencies ───────────────────────────────────────────────────
 
@@ -141,6 +171,9 @@ export const toolDeps: ToolDependencies = {
   categoryRepo,
   goalRepo,
   summaryRepo,
+  merchantHintRepo,
+  eventRepo,
+  insightRepo,
 };
 
 // ─── Provider Registry ───────────────────────────────────────────────────

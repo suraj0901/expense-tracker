@@ -1,17 +1,21 @@
 /**
  * Chat store — Zustand for UI-only ephemeral state.
  *
- * Input buffer, sending flag, error state.
- * Not for data persistence — that's the DB.
+ * The feed is built from three sources:
+ *   - Transaction cards: loaded directly from transactionRepo (bypasses events)
+ *   - Query-response cards: loaded from ai_query_response events
+ *   - System event cards: loaded from other pending events
  */
 
 import { create } from 'zustand';
-import type { Message, AgentResponse, FeedItem } from '../../core/domain/types';
+import type { Message, AgentResponse, FeedItem, Transaction } from '../../core/domain/types';
 import { processMessage } from '../../core/agent/agent';
 import type { AIProvider } from '../../core/providers/types';
 import { messageRepo, transactionRepo, eventRepo } from '../../core/composition-root';
 import { logger } from '../../core/logger';
 import { useMessageQueueStore } from './messageQueue.store';
+
+export type FeedFilter = 'all' | 'transactions' | 'queries';
 
 interface ChatState {
   messages: Message[];
@@ -21,10 +25,12 @@ interface ChatState {
   isLoading: boolean;
   latestResponse: string | null;
   feed: FeedItem[];
+  feedFilter: FeedFilter;
   includedItems: Array<{ id: string; type: string; label: string }>;
   deleteUndo: { id: string; title: string } | null;
   dismissedChips: string[];
   chipRefresh: number;
+  feedVersion: number;
 
   // Actions
   setInput: (value: string) => void;
@@ -46,6 +52,7 @@ interface ChatState {
   clearIncludedItems: () => void;
   dismissChip: (id: string) => void;
   triggerChipRefresh: () => void;
+  setFeedFilter: (filter: FeedFilter) => void;
   clearError: () => void;
 }
 
@@ -99,9 +106,65 @@ async function executeSend(
     });
     set({ isSending: false, error: errorMessage });
     console.error('[ChatStore] Send failed:', error);
-    // Reload messages to remove optimistic user message
     await get().loadMessages();
     return null;
+  }
+}
+
+async function buildFeed(): Promise<FeedItem[]> {
+  const [recentTxns, evts] = await Promise.all([
+    transactionRepo.getRecent(50),
+    eventRepo.getRecent(100),
+  ]);
+
+  const items: FeedItem[] = [];
+
+  for (const txn of recentTxns) {
+    items.push({
+      kind: 'transaction',
+      transaction: txn,
+      timestamp: txn.createdAt,
+    });
+  }
+
+  for (const evt of evts) {
+    if (evt.status !== 'pending') continue;
+    if (evt.type === 'transaction_logged') continue;
+
+    if (evt.type === 'ai_query_response') {
+      const data = evt.data as Record<string, unknown> | null;
+      items.push({
+        kind: 'query-response',
+        queryText: (data?.queryText as string) ?? '',
+        responseText: (data?.fullResponse as string) ?? evt.body,
+        event: evt,
+        timestamp: evt.createdAt,
+      });
+    } else {
+      items.push({
+        kind: 'event',
+        event: evt,
+        timestamp: evt.createdAt,
+      });
+    }
+  }
+
+  items.sort((a, b) => b.timestamp - a.timestamp);
+  return items;
+}
+
+async function dismissTransactionEvents(transactionId: string): Promise<void> {
+  try {
+    const events = await eventRepo.getAll();
+    for (const evt of events) {
+      if (evt.type !== 'transaction_logged' || evt.status !== 'pending') continue;
+      const data = evt.data as Record<string, unknown> | null;
+      if ((data?.transactionId as string) === transactionId) {
+        await eventRepo.updateStatus(evt.id, 'dismissed');
+      }
+    }
+  } catch {
+    // Best-effort
   }
 }
 
@@ -113,10 +176,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: true,
   latestResponse: null,
   feed: [],
+  feedFilter: 'all',
   includedItems: [],
   deleteUndo: null,
   dismissedChips: [],
   chipRefresh: 0,
+  feedVersion: 0,
 
   setInput: (value) => set({ inputValue: value }),
 
@@ -135,16 +200,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   loadFeed: async () => {
     try {
-      const [msgs, evts] = await Promise.all([
-        messageRepo.getAll(),
-        eventRepo.getRecent(100),
-      ]);
-      const items: FeedItem[] = [
-        ...msgs.filter(m => m.role === 'user').map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
-        ...evts.filter(e => e.status === 'pending').map(e => ({ kind: 'event' as const, event: e, timestamp: e.createdAt })),
-      ].sort((a, b) => a.timestamp - b.timestamp);
+      const items = await buildFeed();
       set({ feed: items, isLoading: false });
-      logger.debug('chat:loadFeed', { userMessages: msgs.filter(m => m.role === 'user').length, events: evts.length, feed: items.length });
+      logger.debug('chat:loadFeed', { feed: items.length });
     } catch (error) {
       set({ error: 'Failed to load feed', isLoading: false });
       logger.error('chat:loadFeedFailed', error instanceof Error ? error : new Error(String(error)));
@@ -153,15 +211,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   refreshFeed: async () => {
     try {
-      const [msgs, evts] = await Promise.all([
-        messageRepo.getAll(),
-        eventRepo.getRecent(100),
-      ]);
-      const items: FeedItem[] = [
-        ...msgs.filter(m => m.role === 'user').map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
-        ...evts.filter(e => e.status === 'pending').map(e => ({ kind: 'event' as const, event: e, timestamp: e.createdAt })),
-      ].sort((a, b) => a.timestamp - b.timestamp);
-      set({ feed: items });
+      const items = await buildFeed();
+      set({ feed: items, feedVersion: get().feedVersion + 1 });
     } catch {
       // Best-effort refresh
     }
@@ -174,7 +225,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const queueStore = useMessageQueueStore.getState();
 
-    // If offline, enqueue the message and show it in UI
     if (!queueStore.isOnline) {
       set({ inputValue: '' });
       const userMsg: Message = {
@@ -204,6 +254,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   undoDelete: async (transactionId) => {
     try {
       await transactionRepo.undoDelete(transactionId);
+      const pendingEvents = await eventRepo.getAll();
+      for (const evt of pendingEvents) {
+        if (evt.type !== 'transaction_logged') continue;
+        const data = evt.data as Record<string, unknown> | null;
+        if ((data?.transactionId as string) === transactionId && evt.status === 'dismissed') {
+          await eventRepo.updateStatus(evt.id, 'pending');
+        }
+      }
       set({ deleteUndo: null });
       await get().refreshFeed();
     } catch (error) {
@@ -214,6 +272,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   deleteTransaction: async (transactionId, transactionLabel) => {
     try {
       await transactionRepo.softDelete(transactionId);
+      await dismissTransactionEvents(transactionId);
       set({
         deleteUndo: { id: transactionId, title: transactionLabel },
       });
@@ -240,7 +299,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   updateTransactionFromDb: async (_transactionId) => {
-    // Reload messages to reflect the change from DB
     await get().loadMessages();
   },
 
@@ -283,6 +341,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   triggerChipRefresh: () => {
     set({ chipRefresh: get().chipRefresh + 1 });
   },
+
+  setFeedFilter: (filter) => set({ feedFilter: filter }),
 
   clearError: () => set({ error: null }),
 }));

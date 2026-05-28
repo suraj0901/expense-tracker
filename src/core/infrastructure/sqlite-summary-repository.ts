@@ -3,7 +3,7 @@
  */
 import type { SummaryRepository } from '../app/interfaces';
 import type { MonthlySummary, CategoryBreakdownItem, BudgetStatusResult } from '../domain/types';
-import { getMonthlySummary, getCategoryBreakdown, getBudgetStatus } from '../db/summaries';
+import { getMonthlySummary, getCategoryBreakdown, getBudgetStatus, getSpendingTrend } from '../db/summaries';
 
 export function createSummaryRepository(): SummaryRepository {
   return {
@@ -16,6 +16,9 @@ export function createSummaryRepository(): SummaryRepository {
     async getBudgetStatus(): Promise<BudgetStatusResult> {
       const result = await getBudgetStatus();
       return result as BudgetStatusResult;
+    },
+    async getSpendingTrend(): Promise<SpendingTrend> {
+      return getSpendingTrend() as Promise<SpendingTrend>;
     },
   };
 }

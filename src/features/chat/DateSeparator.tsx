@@ -19,9 +19,7 @@ export function DateSeparator({ timestamp }: { timestamp: number }) {
 
   return (
     <div className="date-separator">
-      <span className="date-separator-line" />
       <span className="date-separator-label">{label}</span>
-      <span className="date-separator-line" />
     </div>
   );
 }

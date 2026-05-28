@@ -5,14 +5,7 @@
  * with the list of files to precache.
  */
 
-import { skipWaiting, clientsClaim } from 'workbox-core';
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
-
-skipWaiting();
-clientsClaim();
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
@@ -34,46 +27,15 @@ self.addEventListener('activate', ((event: ExtendableEvent) => {
   );
 }) as EventListener);
 
-// ─── Runtime caching ─────────────────────────────────────────────────
 
-// Static assets — cache first
-registerRoute(
-  ({ request }) => request.destination === 'font'
-    || request.destination === 'image'
-    || request.destination === 'style',
-  new CacheFirst({
-    cacheName: 'static-assets',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 }),
-    ],
-  }),
-);
-
-// WASM + worker files for SQLite — network first so headers (COOP/COEP)
-// are always fresh. A stale cached response without these headers will
-// block worker creation in cross-origin isolated contexts.
-registerRoute(
-  ({ request }) => request.destination === 'worker'
-    || request.url.endsWith('.wasm'),
-  new NetworkFirst({
-    cacheName: 'wasm-cache',
-    networkTimeoutSeconds: 5,
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 10, maxAgeSeconds: 90 * 24 * 60 * 60 }),
-    ],
-  }),
-);
-
-// Navigation — network first (so we don't serve stale index.html)
-registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: 'pages',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 7 * 24 * 60 * 60 }),
-    ],
-  }),
-);
+// ─── Update flow (prompt-based) ─────────────────────────────────────
+// When the user clicks "Update" in the React banner, the app posts a
+// SKIP_WAITING message. We respond by activating the waiting SW.
+self.addEventListener('message', ((event: ExtendableMessageEvent) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+}) as EventListener);
 
 // ─── Periodic background sync — suggestion scheduler ─────────────────
 

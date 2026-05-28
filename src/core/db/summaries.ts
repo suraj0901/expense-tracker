@@ -6,6 +6,47 @@ import * as schema from './schema';
 import { db } from './init';
 import type { Paise } from '../domain/money';
 
+export async function getSpendingTrend() {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+  const currentStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  const currentEnd = currentMonth === 12 ? `${currentYear + 1}-01-01` : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+  const prevStart = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`;
+  const prevEnd = prevMonth === 12 ? `${prevYear + 1}-01-01` : `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-01`;
+
+  async function getMonthlyTotals(start: string, end: string) {
+    const results = await db.select({
+      type: schema.transactions.type, total: sum(schema.transactions.amount),
+    }).from(schema.transactions).where(and(
+      eq(schema.transactions.isDeleted, false),
+      gte(schema.transactions.date, start), lt(schema.transactions.date, end),
+    )).groupBy(schema.transactions.type);
+    let income = 0, expense = 0;
+    for (const row of results) {
+      const t = Number(row.total) || 0;
+      if (row.type === 'income') income = t;
+      if (row.type === 'expense') expense = t;
+    }
+    return { income, expense };
+  }
+
+  const prev = await getMonthlyTotals(prevStart, prevEnd);
+  const curr = await getMonthlyTotals(currentStart, currentEnd);
+
+  const incomePct = prev.income > 0 ? ((curr.income - prev.income) / prev.income) * 100 : 0;
+  const expensePct = prev.expense > 0 ? ((curr.expense - prev.expense) / prev.expense) * 100 : 0;
+
+  return {
+    current: { income: curr.income, expense: curr.expense },
+    previous: { income: prev.income, expense: prev.expense },
+    changes: { income_pct: Math.round(incomePct * 10) / 10, expense_pct: Math.round(expensePct * 10) / 10 },
+  };
+}
+
 export async function getMonthlySummary(month: number, year: number) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;

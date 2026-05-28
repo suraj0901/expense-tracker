@@ -21,6 +21,7 @@ export interface AutoLogRule {
   typicalAmount: number; // rupees
   merchant: string | null;
   dayOfWeek: number | null; // 0=Sun…6=Sat
+  dayOfMonth: number | null; // 1-31, for monthly patterns
   hour: number | null; // 0-23
   enabled: boolean;
   createdAt: number;
@@ -73,8 +74,11 @@ export function removeAutoLogRule(id: string): AutoLogRule[] {
   return rules;
 }
 
-/** Create a rule from an accepted suggestion. Called when user taps "Log it". */
-export function upsertRuleFromSuggestion(s: Suggestion): void {
+/** Create a rule from an accepted suggestion. Called when user taps "Log it" or "Create rule". */
+export function upsertRuleFromSuggestion(
+  s: Suggestion,
+  timing?: { dayOfWeek?: number; hour?: number; dayOfMonth?: number }
+): void {
   const rules = loadRules();
   const now = new Date();
   const existing = rules.find(
@@ -87,8 +91,9 @@ export function upsertRuleFromSuggestion(s: Suggestion): void {
     category: s.category ?? 'Other',
     typicalAmount: s.typicalAmount ?? 0,
     merchant: s.merchant ?? null,
-    dayOfWeek: now.getDay(),
-    hour: now.getHours(),
+    dayOfWeek: timing?.dayOfWeek ?? now.getDay(),
+    dayOfMonth: timing?.dayOfMonth ?? null,
+    hour: timing?.hour ?? now.getHours(),
     enabled: false, // user must opt in via settings
     createdAt: Date.now(),
   });
@@ -109,10 +114,20 @@ export async function processAutoLogRules(): Promise<number> {
 
   let autoLogged = 0;
   for (const rule of rules) {
-    // Time window: ±1 hour of the rule's hour, same day of week (or any)
     const hourMatches = rule.hour === null || Math.abs(hour - rule.hour) <= 1;
-    const dowMatches = rule.dayOfWeek === null || rule.dayOfWeek === dow;
-    if (!hourMatches || !dowMatches) continue;
+    if (!hourMatches) continue;
+
+    // Day matching: day-of-month takes priority over day-of-week. If neither set, always match.
+    let dayMatches = true;
+    if (rule.dayOfMonth !== null) {
+      const dom = now.getDate();
+      dayMatches = Math.abs(dom - rule.dayOfMonth) <= 2
+        || (rule.dayOfMonth <= 2 && dom >= 29)
+        || (rule.dayOfMonth >= 29 && dom <= 3);
+    } else if (rule.dayOfWeek !== null) {
+      dayMatches = rule.dayOfWeek === dow;
+    }
+    if (!dayMatches) continue;
 
     // Don't duplicate — check if a matching txn already exists today
     const exists = todayTxns.some(

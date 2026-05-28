@@ -87,7 +87,7 @@ export interface MerchantHint {
   category: string;
   useCount: number;
   lastUsedAt: number; // Unix ms
-  confirmStrategy: string; // 'auto' | 'ask' | 'ask_always'
+  confirmStrategy: 'auto' | 'ask' | 'ask_always' | 'dismissed';
 }
 
 // ─── Agent Types ─────────────────────────────────────────────────────────
@@ -182,13 +182,20 @@ export interface StoredBackup {
   sizeBytes: number;
 }
 
+// ─── Spending Trend ────────────────────────────────────────────────────
+
+export interface SpendingTrend {
+  current: { income: number; expense: number };
+  previous: { income: number; expense: number };
+  changes: { income_pct: number; expense_pct: number };
+}
+
 // ─── Events ──────────────────────────────────────────────────────────────
 
 export type EventType =
   | 'transaction_logged'
   | 'merchant_mapping_ask'
   | 'recurring_suggestion'
-  | 'budget_warning'
   | 'goal_milestone'
   | 'monthly_insight'
   | 'ai_query_response';
@@ -209,8 +216,10 @@ export interface AppEvent {
 // ─── Unified Feed ────────────────────────────────────────────────────────
 
 export interface FeedItem {
-  kind: 'message' | 'event';
-  message?: Message;
+  kind: 'transaction' | 'query-response' | 'event';
+  transaction?: Transaction;
+  queryText?: string;
+  responseText?: string;
   event?: AppEvent;
   timestamp: number;
 }

@@ -1,16 +1,20 @@
 import { useEffect, useRef } from 'react';
-import type { FeedItem } from '../../core/domain/types';
-import { MessageBubble } from './MessageBubble';
+import type { FeedItem, BudgetStatusItem } from '../../core/domain/types';
 import { DateSeparator } from './DateSeparator';
 import { EventCard } from './event-cards/EventCard';
+import { TransactionCard } from './TransactionCard';
+import { QueryResponseCard } from './QueryResponseCard';
 import './event-cards/EventFeed.css';
 
 interface EventFeedProps {
   feed: FeedItem[];
   isLoading: boolean;
+  budgetStatus: Map<string, BudgetStatusItem>;
   onDismissEvent: (id: string) => void;
   onActEvent: (id: string, action: string) => void;
   onEditEvent: (item: FeedItem) => void;
+  onDeleteTransaction: (txnId: string, label: string) => void;
+  onUndoDelete: (txnId: string) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -19,14 +23,17 @@ function getDayKey(ts: number): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, onEditEvent, contentRef }: EventFeedProps) {
-  const wasAtBottom = useRef(true);
+export function EventFeed({
+  feed, isLoading, budgetStatus, onDismissEvent, onActEvent, onEditEvent,
+  onDeleteTransaction, onUndoDelete, contentRef,
+}: EventFeedProps) {
+  const wasAtTop = useRef(true);
 
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
     const check = () => {
-      wasAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+      wasAtTop.current = el.scrollTop < 60;
     };
     el.addEventListener('scroll', check, { passive: true });
     return () => el.removeEventListener('scroll', check);
@@ -34,9 +41,9 @@ export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, onEditE
 
   useEffect(() => {
     const el = contentRef.current;
-    if (el && wasAtBottom.current) {
+    if (el && wasAtTop.current) {
       requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight;
+        el.scrollTop = 0;
       });
     }
   }, [feed.length, contentRef]);
@@ -62,10 +69,30 @@ export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, onEditE
         const showSeparator = idx === 0 || dayKey !== dayKeys[idx - 1].dayKey;
 
         return (
-          <div key={`${item.kind}-${item.message?.id ?? item.event?.id}`}>
+          <div key={itemKey(item)}>
             {showSeparator && <DateSeparator timestamp={item.timestamp} />}
-            {item.kind === 'message' && item.message && (
-              <MessageBubble message={item.message} />
+            {item.kind === 'transaction' && item.transaction && (
+              <TransactionCard
+                transaction={item.transaction}
+                budgetStatus={budgetStatus.get(item.transaction.category)}
+                onEdit={() => onEditEvent(item)}
+                onDelete={() => {
+                  const t = item.transaction!;
+                  const amt = (t.amount / 100).toFixed(0);
+                  const label = t.merchant
+                    ? `${t.category} ₹${amt} at ${t.merchant}`
+                    : `${t.category} ₹${amt}`;
+                  onDeleteTransaction(t.id, label);
+                }}
+                onUndo={() => onUndoDelete(item.transaction!.id)}
+              />
+            )}
+            {item.kind === 'query-response' && item.event && (
+              <QueryResponseCard
+                queryText={item.queryText ?? ''}
+                responseText={item.responseText ?? ''}
+                onDismiss={() => onDismissEvent(item.event!.id)}
+              />
             )}
             {item.kind === 'event' && item.event && (
               <EventCard
@@ -80,4 +107,11 @@ export function EventFeed({ feed, isLoading, onDismissEvent, onActEvent, onEditE
       })}
     </div>
   );
+}
+
+function itemKey(item: FeedItem): string {
+  if (item.kind === 'transaction' && item.transaction) return `txn-${item.transaction.id}`;
+  if (item.kind === 'query-response' && item.event) return `qr-${item.event.id}`;
+  if (item.kind === 'event' && item.event) return `evt-${item.event.id}`;
+  return `feed-${item.timestamp}-${Math.random()}`;
 }

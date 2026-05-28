@@ -1,16 +1,40 @@
 /**
  * Pattern-detection scheduler — runs periodically to find spending habits.
  *
- * Queries the DB directly (no AI credits consumed). Detects repeated
- * patterns: same category + similar amount (±20%) appearing 3+ times.
+ * Two notification types for recurring patterns:
+ *   1. Timed-log reminders — fire at the pattern's day/time (e.g., "Breakfast? 8:30am Wed")
+ *   2. Rule-creation suggestions — for consistent patterns, ask "create a rule?"
+ *
+ * Pre-generates AI notification content at detection time. Never calls AI
+ * at notification time. Uses static fallbacks when AI is unavailable.
  */
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import { processAutoLogRules } from './recurring';
-import { transactionRepo, merchantHintRepo, eventRepo, summaryRepo, goalRepo, insightRepo } from './composition-root';
+import { transactionRepo, merchantHintRepo, eventRepo, goalRepo, insightRepo } from './composition-root';
 import { autoBackup } from './db/client';
 import { nanoid } from 'nanoid';
-import { checkBudgetWarnings, checkGoalMilestones } from './app/event-generators';
+import { checkGoalMilestones } from './app/event-generators';
+import type { PatternCandidate, PatternFinding } from './agent/proactive-agent';
+import {
+  computePatternTiming,
+  upsertReminder,
+  markReminderNotified,
+  getPendingReminders,
+  checkReminderExpiry,
+  setRecentTransactionCache,
+  staticNotificationBody,
+  dayName,
+} from './pattern-reminders';
+import { kvGet, kvSet } from './platform/kv-store';
+
+type PatternAnalyzer = (candidates: PatternCandidate[], txns: Array<{ id: string; amount: Paise; type: string; category: string; merchant: string | null; description: string | null; date: string; isDeleted: boolean; }>) => Promise<PatternFinding[]>;
+
+let patternAnalyzer: PatternAnalyzer | null = null;
+
+export function setPatternAnalyzer(fn: PatternAnalyzer | null): void {
+  patternAnalyzer = fn;
+}
 
 export interface Suggestion {
   id: string;
@@ -18,13 +42,28 @@ export interface Suggestion {
   category?: string;
   typicalAmount?: number; // rupees
   merchant?: string;
+  notificationBody: string;
+  notificationType: 'timed-log' | 'rule-creation';
+  createdAt: number;
+}
+
+export interface TimedReminder {
+  id: string;
+  category: string;
+  typicalAmount: number;
+  merchant: string | null;
+  notificationBody: string;
   createdAt: number;
 }
 
 type Listener = (s: Suggestion) => void;
+type TimedReminderListener = (r: TimedReminder) => void;
+
+const DISMISSED_STORAGE_KEY = 'expense-tracker:dismissed-suggestions';
 
 class Scheduler {
   private listeners: Listener[] = [];
+  private timedReminderListeners: TimedReminderListener[] = [];
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private backupIntervalId: ReturnType<typeof setInterval> | null = null;
   private dismissedIds = new Set<string>();
@@ -37,8 +76,25 @@ class Scheduler {
     return () => { this.listeners = this.listeners.filter((l) => l !== fn); };
   }
 
+  onTimedReminder(fn: TimedReminderListener): () => void {
+    this.timedReminderListeners.push(fn);
+    return () => { this.timedReminderListeners = this.timedReminderListeners.filter((l) => l !== fn); };
+  }
+
   dismissSuggestion(id: string): void {
     this.dismissedIds.add(id);
+    this.persistDismissed();
+  }
+
+  private loadDismissed(): void {
+    try {
+      const raw = kvGet(DISMISSED_STORAGE_KEY);
+      if (raw) this.dismissedIds = new Set(JSON.parse(raw));
+    } catch {}
+  }
+
+  private persistDismissed(): void {
+    kvSet(DISMISSED_STORAGE_KEY, JSON.stringify([...this.dismissedIds]));
   }
 
   private emit(s: Suggestion): void {
@@ -46,16 +102,18 @@ class Scheduler {
     for (const fn of this.listeners) fn(s);
   }
 
+  private emitTimedReminder(r: TimedReminder): void {
+    for (const fn of this.timedReminderListeners) fn(r);
+  }
+
   async tick(): Promise<void> {
     try {
       await processAutoLogRules();
 
-      // Run budget/goal checks
-      checkBudgetWarnings(summaryRepo, eventRepo);
+      // Run goal checks
       checkGoalMilestones(goalRepo, eventRepo);
 
-      // Month-end insight check: if we're in the first 3 days of a month,
-      // create a monthly_insight event prompting the user to view insights
+      // Month-end insight check
       const now = new Date();
       if (now.getDate() <= 3) {
         const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
@@ -74,7 +132,9 @@ class Scheduler {
         }
       }
 
+      // Pattern detection
       const recent = await transactionRepo.getRecent(50);
+      const candidates: PatternCandidate[] = [];
       const groups = new Map<string, { amounts: number[]; merchant: string | null }>();
       for (const t of recent) {
         if (t.type !== 'expense') continue;
@@ -83,60 +143,192 @@ class Scheduler {
         entry.amounts.push(paiseToRupees(t.amount as Paise));
         groups.set(key, entry);
       }
+
+      // Cache transactions for timing computation
+      setRecentTransactionCache(
+        recent.filter((t) => t.type === 'expense').map((t) => ({
+          date: t.date,
+          category: t.category,
+          amount: paiseToRupees(t.amount as Paise),
+          merchant: t.merchant,
+        }))
+      );
+
       for (const [category, data] of groups) {
         if (data.amounts.length < 3) continue;
         const sorted = [...data.amounts].sort((a, b) => a - b);
         const median = sorted[Math.floor(sorted.length / 2)];
         const similar = sorted.filter((a) => median > 0 && Math.abs(a - median) / median < 0.2);
         if (similar.length >= 3) {
-          const avg = Math.round(similar.reduce((s, a) => s + a, 0) / similar.length);
-          const mid = data.merchant ? ` at ${data.merchant}` : '';
-          const s: Suggestion = {
-            id: `pattern-${category}-${avg}`,
-            text: `~₹${avg} ${category}${mid}`,
-            category,
-            typicalAmount: avg,
-            merchant: data.merchant ?? undefined,
-            createdAt: Date.now(),
-          };
-          this.emit(s);
-
-          // Persist as event
-          eventRepo.insert({
-            id: nanoid(),
-            type: 'recurring_suggestion',
-            title: `Recurring pattern: ${category}`,
-            body: `You've spent ~₹${avg} on ${category}${mid} ${similar.length} times recently. Want me to remember this?`,
-            data: { category, typicalAmount: avg, merchant: data.merchant, count: similar.length },
-            createdAt: Date.now(),
-          }).catch(() => {});
+          candidates.push({ category, amounts: similar, merchant: data.merchant });
         }
       }
-      const hints = await merchantHintRepo.getTop(20);
-      for (const h of hints) {
-        if ((h.useCount ?? 0) < 3) continue;
-        this.emit({
-          id: `hint-${h.canonicalName}`,
-          text: `You've logged "${h.canonicalName}" ${h.useCount} times as ${h.category}. I'll auto-categorize future entries.`,
-          createdAt: Date.now(),
-        });
 
+      if (patternAnalyzer && candidates.length > 0) {
+        try {
+          const findings = await patternAnalyzer(candidates, recent);
+          this.processFindings(findings, true);
+        } catch {
+          patternAnalyzer = null;
+          this.processStatsFallback(groups);
+        }
+      } else if (candidates.length > 0) {
+        this.processStatsFallback(groups);
+      }
+
+      // Fire pending timed reminders
+      this.firePendingReminders();
+
+      // Check reminder expiry
+      const expired = checkReminderExpiry();
+      if (expired > 0) {
         eventRepo.insert({
           id: nanoid(),
-          type: 'merchant_mapping_ask',
-          title: `Merchant: ${h.canonicalName}`,
-          body: `Should "${h.canonicalName}" always be categorized as "${h.category}"? (used ${h.useCount} times)`,
-          data: { merchant: h.canonicalName, category: h.category, useCount: h.useCount },
+          type: 'recurring_suggestion',
+          title: 'Patterns expired',
+          body: `${expired} inactive recurring pattern(s) removed.`,
+          data: { expiredCount: expired },
           createdAt: Date.now(),
         }).catch(() => {});
       }
+
+      // Merchant hints
+      const hints = await merchantHintRepo.getTop(20);
+      for (const h of hints) {
+        if ((h.useCount ?? 0) < 3) continue;
+        if (h.confirmStrategy === 'dismissed') continue;
+        this.emit({
+          id: `hint-${h.canonicalName}`,
+          text: `You've logged "${h.canonicalName}" ${h.useCount} times as ${h.category}.`,
+          notificationBody: `I'll auto-categorize future "${h.canonicalName}" entries as ${h.category}.`,
+          notificationType: 'rule-creation',
+          createdAt: Date.now(),
+        });
+      }
     } catch {
-      // Scheduler failures are silent — don't bother the user
+      // Scheduler failures are silent
+    }
+  }
+
+  private processFindings(findings: PatternFinding[], aiEnabled: boolean): void {
+    for (const f of findings) {
+      const timing = computePatternTiming(f.category, f.merchant, f.typicalAmount);
+      const mid = f.merchant ? ` at ${f.merchant}` : '';
+
+      if (timing.isTimed) {
+        // Store as timed reminder — notification fires on-schedule, not now
+        const body = aiEnabled
+          ? f.notificationBody
+          : staticNotificationBody('timed-log', f.category, f.typicalAmount, f.merchant, dayName(timing.daysOfWeek[0]), timing.hour);
+
+        upsertReminder(f.category, f.typicalAmount, f.merchant, timing, body);
+
+        eventRepo.insert({
+          id: nanoid(),
+          type: 'recurring_suggestion',
+          title: `Timed pattern: ${f.category}`,
+          body: `${aiEnabled ? f.reasoning : 'Detected'}: ~₹${f.typicalAmount} ${f.category}${mid} on ${timing.daysOfWeek.map((d) => dayName(d)).join(', ')}. I'll remind you.`,
+          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, confidence: f.confidence, notificationType: 'timed-log' },
+          createdAt: Date.now(),
+        }).catch(() => {});
+      } else {
+        // No clear timing — emit rule-creation suggestion immediately
+        const body = aiEnabled
+          ? f.notificationBody
+          : staticNotificationBody('rule-creation', f.category, f.typicalAmount, f.merchant);
+
+        const s: Suggestion = {
+          id: `rule-${f.category}-${f.typicalAmount}`,
+          text: `~₹${f.typicalAmount} ${f.category}${mid}`,
+          category: f.category,
+          typicalAmount: f.typicalAmount,
+          merchant: f.merchant ?? undefined,
+          notificationBody: body,
+          notificationType: 'rule-creation',
+          createdAt: Date.now(),
+        };
+        this.emit(s);
+
+        eventRepo.insert({
+          id: nanoid(),
+          type: 'recurring_suggestion',
+          title: `Recurring pattern: ${f.category}`,
+          body: `${aiEnabled ? f.reasoning : `You've spent ~₹${f.typicalAmount} on ${f.category}${mid} multiple times.`} Create a recurring rule?`,
+          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, confidence: f.confidence, notificationType: 'rule-creation' },
+          createdAt: Date.now(),
+        }).catch(() => {});
+      }
+    }
+  }
+
+  private processStatsFallback(groups: Map<string, { amounts: number[]; merchant: string | null }>): void {
+    for (const [category, data] of groups) {
+      if (data.amounts.length < 3) continue;
+      const sorted = [...data.amounts].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const similar = sorted.filter((a) => median > 0 && Math.abs(a - median) / median < 0.2);
+      if (similar.length < 3) continue;
+
+      const avg = Math.round(similar.reduce((s, a) => s + a, 0) / similar.length);
+      const timing = computePatternTiming(category, data.merchant, avg);
+      const mid = data.merchant ? ` at ${data.merchant}` : '';
+
+      if (timing.isTimed) {
+        const body = staticNotificationBody('timed-log', category, avg, data.merchant, dayName(timing.daysOfWeek[0]), timing.hour);
+        upsertReminder(category, avg, data.merchant, timing, body);
+
+        eventRepo.insert({
+          id: nanoid(),
+          type: 'recurring_suggestion',
+          title: `Timed pattern: ${category}`,
+          body: `Detected ~₹${avg} ${category}${mid} on ${timing.daysOfWeek.map((d) => dayName(d)).join(', ')}. I'll remind you.`,
+          data: { category, typicalAmount: avg, merchant: data.merchant, count: similar.length, notificationType: 'timed-log' },
+          createdAt: Date.now(),
+        }).catch(() => {});
+      } else {
+        const body = staticNotificationBody('rule-creation', category, avg, data.merchant);
+        const s: Suggestion = {
+          id: `rule-${category}-${avg}`,
+          text: `~₹${avg} ${category}${mid}`,
+          category,
+          typicalAmount: avg,
+          merchant: data.merchant ?? undefined,
+          notificationBody: body,
+          notificationType: 'rule-creation',
+          createdAt: Date.now(),
+        };
+        this.emit(s);
+
+        eventRepo.insert({
+          id: nanoid(),
+          type: 'recurring_suggestion',
+          title: `Recurring pattern: ${category}`,
+          body: `You've spent ~₹${avg} on ${category}${mid} ${similar.length} times recently. Create a recurring rule?`,
+          data: { category, typicalAmount: avg, merchant: data.merchant, count: similar.length, notificationType: 'rule-creation' },
+          createdAt: Date.now(),
+        }).catch(() => {});
+      }
+    }
+  }
+
+  private firePendingReminders(): void {
+    const pending = getPendingReminders();
+    for (const r of pending) {
+      this.emitTimedReminder({
+        id: r.id,
+        category: r.category,
+        typicalAmount: r.typicalAmount,
+        merchant: r.merchant,
+        notificationBody: r.notificationBody,
+        createdAt: Date.now(),
+      });
+      markReminderNotified(r.id);
     }
   }
 
   start(): void {
     if (this.intervalId) return;
+    this.loadDismissed();
     setTimeout(() => this.tick(), 2 * 60 * 1000);
     this.intervalId = setInterval(() => this.tick(), this.INTERVAL_MS);
     setTimeout(() => autoBackup(), 5 * 60 * 1000);
@@ -160,6 +352,10 @@ function getInstance(): Scheduler {
 
 export function onSuggestion(fn: Listener): () => void {
   return getInstance().onSuggestion(fn);
+}
+
+export function onTimedReminder(fn: TimedReminderListener): () => void {
+  return getInstance().onTimedReminder(fn);
 }
 
 export function dismissSuggestion(id: string): void {

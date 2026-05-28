@@ -85,6 +85,64 @@ export const CreateCategorySchema = z.object({
 
 export const ListCategoriesSchema = z.object({});
 
+export const UpdateCategorySchema = z.object({
+  name: z.string().min(1),
+  new_name: z.string().optional(),
+  icon: z.string().optional(),
+});
+
+export const DeleteCategorySchema = z.object({
+  name: z.string().min(1),
+});
+
+export const SetBudgetSchema = z.object({
+  category_name: z.string().min(1),
+  amount: z.number().positive(),
+});
+
+export const GetBudgetsSchema = z.object({});
+
+export const DeleteBudgetSchema = z.object({
+  category_name: z.string().min(1),
+});
+
+export const GetSpendingTrendSchema = z.object({});
+
+export const GetMerchantMappingsSchema = z.object({});
+
+export const UpdateMerchantMappingSchema = z.object({
+  canonical_name: z.string().min(1),
+  category: z.string().optional(),
+  confirm_strategy: z.enum(['auto', 'ask_always', 'dismissed']).optional(),
+});
+
+export const DeleteMerchantMappingSchema = z.object({
+  canonical_name: z.string().min(1),
+});
+
+export const GetAutoLogRulesSchema = z.object({});
+
+export const EnableAutoLogRuleSchema = z.object({
+  rule_id: z.string().min(1),
+});
+
+export const DisableAutoLogRuleSchema = z.object({
+  rule_id: z.string().min(1),
+});
+
+export const DeleteAutoLogRuleSchema = z.object({
+  rule_id: z.string().min(1),
+});
+
+export const GetEventFeedSchema = z.object({
+  limit: z.number().optional(),
+});
+
+export const GetInsightsSchema = z.object({
+  month: z.number().min(1).max(12).optional(),
+  year: z.number().optional(),
+});
+
 export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
   store_expense: StoreExpenseSchema,
   store_income: StoreIncomeSchema,
@@ -101,4 +159,19 @@ export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
   delete_goal: DeleteGoalSchema,
   create_category: CreateCategorySchema,
   list_categories: ListCategoriesSchema,
+  update_category: UpdateCategorySchema,
+  delete_category: DeleteCategorySchema,
+  set_budget: SetBudgetSchema,
+  get_budgets: GetBudgetsSchema,
+  delete_budget: DeleteBudgetSchema,
+  get_spending_trend: GetSpendingTrendSchema,
+  get_merchant_mappings: GetMerchantMappingsSchema,
+  update_merchant_mapping: UpdateMerchantMappingSchema,
+  delete_merchant_mapping: DeleteMerchantMappingSchema,
+  get_auto_log_rules: GetAutoLogRulesSchema,
+  enable_auto_log_rule: EnableAutoLogRuleSchema,
+  disable_auto_log_rule: DisableAutoLogRuleSchema,
+  delete_auto_log_rule: DeleteAutoLogRuleSchema,
+  get_event_feed: GetEventFeedSchema,
+  get_insights: GetInsightsSchema,
 };

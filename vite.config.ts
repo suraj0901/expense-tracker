@@ -22,6 +22,7 @@ export default defineConfig({
       injectManifest: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB — large WebLLM model bundle
       },
+      mode: 'development',
       manifest: {
         name: 'AI Expense Tracker',
         short_name: 'ExpenseTracker',

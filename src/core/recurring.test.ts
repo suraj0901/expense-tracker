@@ -16,6 +16,8 @@ function makeSuggestion(overrides: Partial<Suggestion> = {}): Suggestion {
     category: 'Transport',
     typicalAmount: 25,
     merchant: undefined,
+    notificationBody: 'Your usual ~₹25 Transport — want me to log it?',
+    notificationType: 'rule-creation',
     createdAt: Date.now(),
     ...overrides,
   };

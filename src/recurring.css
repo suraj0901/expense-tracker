@@ -85,17 +85,4 @@
 
 .rule-btn-remove:hover { border-color: rgba(248, 113, 113, 0.3); color: var(--color-danger); }
 
-.rule-btn-restore {
-  background: var(--color-accent-muted); color: var(--color-accent-text);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
 
-.rule-btn-restore:hover {
-  background: rgba(16, 185, 129, 0.18);
-}
-
-.rule-btn-enable {
-  background: var(--color-accent); color: var(--color-text-inverse);
-}
-
-.rule-btn-enable:hover { background: var(--color-accent-hover); }

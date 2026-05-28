@@ -9,41 +9,17 @@ interface EventCardProps {
 
 export function EventCard({ event, onDismiss, onAct, onEdit }: EventCardProps) {
   switch (event.type) {
-    case 'transaction_logged':
-      return <TransactionLoggedCard event={event} onDismiss={onDismiss} onAct={onAct} onEdit={onEdit} />;
     case 'recurring_suggestion':
       return <RecurringSuggestionCard event={event} onDismiss={onDismiss} onAct={onAct} />;
-    case 'budget_warning':
-      return <BudgetWarningCard event={event} onDismiss={onDismiss} onAct={onAct} />;
     case 'goal_milestone':
       return <GoalMilestoneCard event={event} onDismiss={onDismiss} onAct={onAct} />;
     case 'monthly_insight':
       return <MonthlyInsightCard event={event} onDismiss={onDismiss} onAct={onAct} />;
     case 'merchant_mapping_ask':
       return <MerchantMappingCard event={event} onDismiss={onDismiss} onAct={onAct} />;
-    case 'ai_query_response':
-      return <AiQueryResponseCard event={event} onDismiss={onDismiss} onAct={onAct} />;
     default:
       return null;
   }
-}
-
-function TransactionLoggedCard({ event, onDismiss, onAct, onEdit }: EventCardProps) {
-  return (
-    <div className="event-card event-card--transaction">
-      <div className="event-card-header">
-        <span className="event-card-icon">💰</span>
-        <span className="event-card-title">{event.title}</span>
-        <button className="event-card-dismiss" onClick={() => onDismiss(event.id)}>×</button>
-      </div>
-      <div className="event-card-body">{event.body}</div>
-      <div className="event-card-actions">
-        <button className="event-card-btn" onClick={() => onEdit({ kind: 'event', event, timestamp: event.createdAt })}>Edit</button>
-        <button className="event-card-btn" onClick={() => onAct(event.id, 'delete')}>Delete</button>
-        <button className="event-card-btn event-card-btn--primary" onClick={() => onAct(event.id, 'include')}>Include in chat</button>
-      </div>
-    </div>
-  );
 }
 
 function RecurringSuggestionCard({ event, onDismiss, onAct }: EventCardProps) {
@@ -67,23 +43,6 @@ function RecurringSuggestionCard({ event, onDismiss, onAct }: EventCardProps) {
   );
 }
 
-function BudgetWarningCard({ event, onDismiss, onAct }: EventCardProps) {
-  return (
-    <div className="event-card event-card--warning">
-      <div className="event-card-header">
-        <span className="event-card-icon">⚠️</span>
-        <span className="event-card-title">{event.title}</span>
-        <button className="event-card-dismiss" onClick={() => onDismiss(event.id)}>×</button>
-      </div>
-      <div className="event-card-body">{event.body}</div>
-      <div className="event-card-actions">
-        <button className="event-card-btn" onClick={() => onAct(event.id, 'view_budget')}>View budget</button>
-        <button className="event-card-btn" onClick={() => onDismiss(event.id)}>Dismiss</button>
-      </div>
-    </div>
-  );
-}
-
 function GoalMilestoneCard({ event, onDismiss, onAct }: EventCardProps) {
   return (
     <div className="event-card event-card--milestone">
@@ -94,7 +53,7 @@ function GoalMilestoneCard({ event, onDismiss, onAct }: EventCardProps) {
       </div>
       <div className="event-card-body">{event.body}</div>
       <div className="event-card-actions">
-        <button className="event-card-btn" onClick={() => onAct(event.id, 'view_goals')}>View goals</button>
+        <button className="event-card-btn event-card-btn--primary" onClick={() => onAct(event.id, 'view_goals')}>View goals</button>
         <button className="event-card-btn" onClick={() => onDismiss(event.id)}>Dismiss</button>
       </div>
     </div>
@@ -142,23 +101,7 @@ function MerchantMappingCard({ event, onDismiss, onAct }: EventCardProps) {
         </button>
         <button className="event-card-btn" onClick={() => onAct(event.id, 'pick_category')}>Pick category</button>
         <button className="event-card-btn" onClick={() => onAct(event.id, 'ask_always')}>Always ask</button>
-        <button className="event-card-btn" onClick={() => onDismiss(event.id)}>Dismiss</button>
-      </div>
-    </div>
-  );
-}
-
-function AiQueryResponseCard({ event, onDismiss, onAct }: EventCardProps) {
-  return (
-    <div className="event-card event-card--query">
-      <div className="event-card-header">
-        <span className="event-card-icon">🤖</span>
-        <span className="event-card-title">{event.title}</span>
-        <button className="event-card-dismiss" onClick={() => onDismiss(event.id)}>×</button>
-      </div>
-      <div className="event-card-body">{event.body}</div>
-      <div className="event-card-actions">
-        <button className="event-card-btn event-card-btn--primary" onClick={() => onAct(event.id, 'view_full')}>View full response</button>
+        <button className="event-card-btn" onClick={() => onAct(event.id, 'never_ask')}>Never ask</button>
         <button className="event-card-btn" onClick={() => onDismiss(event.id)}>Dismiss</button>
       </div>
     </div>

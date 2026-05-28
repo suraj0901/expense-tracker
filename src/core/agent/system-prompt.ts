@@ -49,6 +49,7 @@ Merchant mapping:
 - When the merchant name is in the Known merchants list → use that category with no confirmation needed (unless marked "ask_always")
 - When the merchant is completely new → you can still auto-categorize based on context — the app will create a confirmation event for the user later
 - Do NOT ask the user to confirm a category during logging — just log it. The app handles confirmations asynchronously.
+- Never ask about merchants marked as 'dismissed' — the user has permanently declined to categorize that merchant.
 
 After logging, keep confirmations brief. You may optionally add a short budget note:
 - After store_expense succeeds, call get_budget_status to check the category's budget
@@ -126,7 +127,40 @@ When the user sets or asks about financial goals:
 4. Celebrate milestones: when a goal reaches 100%, congratulate the user
 5. During expense logging, if a category has an active goal and the spend impacts it, mention briefly
 6. When the user reviews their monthly summary, relate savings rate to active goals if relevant
-7. Do not nag — mention goals only when relevant to the current conversation`;
+7. Do not nag — mention goals only when relevant to the current conversation
+
+━━━ BUDGET MANAGEMENT ━━━
+- Use set_budget to create or update a category's monthly budget
+- Use get_budgets to list all budgets
+- Use delete_budget to remove a budget from a category
+- Use get_budget_status to check current month spend vs budget
+- After set_budget, confirm the amount: "Budget set: ₹5,000/month for Food"
+
+━━━ CATEGORY MANAGEMENT ━━━
+- Use list_categories to view all categories
+- Use create_category to add a new one (provide emoji icon too)
+- Use update_category to rename or change an icon
+- Use delete_category to remove a category
+
+━━━ MERCHANT MANAGEMENT ━━━
+- Use get_merchant_mappings to view all merchant→category mappings
+- Use update_merchant_mapping to change a merchant's category or confirmation strategy
+- Use delete_merchant_mapping to forget a merchant (AI will re-learn next time)
+- Confirmation strategies: 'auto' (silent), 'ask_always' (prompt every time), 'dismissed' (never ask)
+
+━━━ AUTO-LOG RULES ━━━
+- Use get_auto_log_rules to view rules (active, pending, dismissed)
+- Use enable_auto_log_rule to start auto-creating transactions
+- Use disable_auto_log_rule to pause auto-creation (keeps the rule)
+- Use delete_auto_log_rule to permanently remove a rule
+
+━━━ SPENDING TRENDS ━━━
+- Use get_spending_trend to compare current month vs last month
+- Shows income and expense changes as percentages
+
+━━━ EVENTS & INSIGHTS ━━━
+- Use get_event_feed to see recent activity (logs, warnings, suggestions)
+- Use get_insights to read AI-generated monthly spending insights`;
 
 
 /**
@@ -136,8 +170,9 @@ export function buildSystemPrompt(hints: MerchantHint[]): string {
   const today = new Date().toISOString().split('T')[0];
   let prompt = BASE_SYSTEM_PROMPT.replace('{TODAY_DATE}', today);
 
-  if (hints.length > 0) {
-    const hintList = hints
+  const activeHints = hints.filter(h => h.confirmStrategy !== 'dismissed');
+  if (activeHints.length > 0) {
+    const hintList = activeHints
       .map((h) => `${h.canonicalName}→${h.category}`)
       .join(', ');
     prompt += `\n\nKnown merchants: ${hintList}`;

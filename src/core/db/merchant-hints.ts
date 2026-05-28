@@ -28,3 +28,27 @@ export async function getMerchantHints(limit: number = 30) {
   return db.select().from(schema.merchantHints)
     .orderBy(desc(schema.merchantHints.useCount)).limit(limit);
 }
+
+export async function getAllMerchantHints() {
+  return db.select().from(schema.merchantHints)
+    .orderBy(desc(schema.merchantHints.useCount));
+}
+
+export async function updateMerchantHint(
+  canonicalName: string,
+  fields: { category?: string; confirmStrategy?: string }
+) {
+  const existing = await db.select().from(schema.merchantHints)
+    .where(eq(schema.merchantHints.canonicalName, canonicalName));
+  if (existing.length === 0) return false;
+
+  await db.update(schema.merchantHints)
+    .set({ ...fields, lastUsedAt: Date.now() })
+    .where(eq(schema.merchantHints.canonicalName, canonicalName));
+  return true;
+}
+
+export async function deleteMerchantHint(canonicalName: string) {
+  await db.delete(schema.merchantHints)
+    .where(eq(schema.merchantHints.canonicalName, canonicalName));
+}

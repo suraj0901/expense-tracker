@@ -2,9 +2,11 @@
  * ChatView — SmartHeader + EventFeed + input.
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { ArrowUp, Loader2, AlertTriangle, Key, X, Undo2 } from 'lucide-react';
-import { useChatStore } from './chat.store';
+import { nanoid } from 'nanoid';
+import { format } from 'date-fns';
+import { useChatStore, type FeedFilter } from './chat.store';
 import { useSettingsStore } from '../settings/settings.store';
 import { SmartHeader } from './SmartHeader';
 import { EmptyState } from './EmptyState';
@@ -17,13 +19,16 @@ import { VoiceInput } from './VoiceInput';
 import { SuggestionStrip } from './SuggestionStrip';
 import { EventFeed } from './EventFeed';
 import { EditTransactionModal } from './EditTransactionModal';
-import { merchantHintRepo } from '../../core/composition-root';
-import type { FeedItem } from '../../core/domain/types';
+import { CategoryPicker } from './CategoryPicker';
+import { transactionRepo, merchantHintRepo, summaryRepo } from '../../core/composition-root';
+import { rupeesToPaise } from '../../core/domain/money';
+import { upsertRuleFromSuggestion } from '../../core/recurring';
+import type { FeedItem, BudgetStatusItem } from '../../core/domain/types';
 
 export function ChatView() {
   const {
     inputValue, isSending, error, isLoading, feed, includedItems, deleteUndo,
-    dismissedChips, chipRefresh, setInput, loadFeed, refreshFeed, sendMessage,
+    dismissedChips, chipRefresh, feedVersion, feedFilter, setFeedFilter, setInput, loadFeed, refreshFeed, sendMessage,
     clearError, sendQueuedMessage, dismissEvent, actOnEvent, deleteTransaction,
     undoDelete, clearDeleteUndo, addIncludedItem, removeIncludedItem,
     dismissChip, triggerChipRefresh,
@@ -31,8 +36,9 @@ export function ChatView() {
 
   const { provider } = useSettingsStore();
   const queueStore = useMessageQueueStore();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [editItem, setEditItem] = useState<FeedItem | null>(null);
+  const [pickCategoryEventId, setPickCategoryEventId] = useState<string | null>(null);
+  const [budgetStatusCache, setBudgetStatusCache] = useState<Map<string, BudgetStatusItem>>(new Map());
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const drainLockRef = useRef(false);
@@ -46,9 +52,31 @@ export function ChatView() {
   }, [loadFeed]);
 
   const triggerRefresh = useCallback(() => {
-    setRefreshKey((k) => k + 1);
     refreshFeed();
   }, [refreshFeed]);
+
+  // Load budget status for transaction cards
+  useEffect(() => {
+    summaryRepo.getBudgetStatus().then((status) => {
+      const map = new Map<string, BudgetStatusItem>();
+      for (const item of status.items) {
+        map.set(item.category, item);
+      }
+      setBudgetStatusCache(map);
+    }).catch(() => {});
+  }, [feedVersion]);
+
+  const handleCategoryPick = useCallback(async (category: string) => {
+    if (!pickCategoryEventId) return;
+    const evt = feed.find(f => f.event?.id === pickCategoryEventId)?.event;
+    const data = evt?.data as Record<string, unknown> | null;
+    const merchant = data?.merchant as string;
+    if (merchant && category) {
+      merchantHintRepo.upsert(merchant, category);
+    }
+    dismissEvent(pickCategoryEventId);
+    setPickCategoryEventId(null);
+  }, [pickCategoryEventId, feed, dismissEvent]);
 
   // Auto-drain queued messages when back online
   useEffect(() => {
@@ -101,26 +129,10 @@ export function ChatView() {
     useDraftStore.getState().remove(id);
   };
 
-  const handleActEvent = (eventId: string, action: string) => {
-    if (action === 'delete') {
-      const event = feed.find(f => f.event?.id === eventId)?.event;
-      const data = event?.data as Record<string, unknown> | null;
-      const txnId = data?.transactionId as string;
-      const label = data?.category ? `${String(data.category)} ₹${String(data.amount ? Number(data.amount) / 100 : 0)}` : 'transaction';
-      if (txnId) deleteTransaction(txnId, label);
-    } else if (action === 'include') {
-      const event = feed.find(f => f.event?.id === eventId)?.event;
-      const data = event?.data as Record<string, unknown> | null;
-      const txnId = data?.transactionId as string;
-      if (txnId) {
-        const rawAmt = Number(data?.amount ?? 0);
-        const amt = rawAmt > 0 ? `₹${(rawAmt / 100).toFixed(0)}` : '';
-        const merchant = data?.merchant ? ` at ${String(data.merchant)}` : '';
-        addIncludedItem(txnId, 'Transaction', `${amt}${merchant}`);
-      }
-    } else if (action.startsWith('confirm:')) {
-      const event = feed.find(f => f.event?.id === eventId)?.event;
-      const data = event?.data as Record<string, unknown> | null;
+  const handleActEvent = useCallback(async (eventId: string, action: string) => {
+    if (action.startsWith('confirm:')) {
+      const evt = feed.find(f => f.event?.id === eventId)?.event;
+      const data = evt?.data as Record<string, unknown> | null;
       const category = action.replace('confirm:', '');
       const merchant = data?.merchant as string;
       if (merchant && category) {
@@ -128,21 +140,77 @@ export function ChatView() {
       }
       dismissEvent(eventId);
     } else if (action === 'ask_always') {
-      const event = feed.find(f => f.event?.id === eventId)?.event;
-      const data = event?.data as Record<string, unknown> | null;
+      const evt = feed.find(f => f.event?.id === eventId)?.event;
+      const data = evt?.data as Record<string, unknown> | null;
       const merchant = data?.merchant as string;
       const category = data?.suggestedCategory as string;
       if (merchant && category) {
         merchantHintRepo.upsert(merchant, category, 'ask_always');
       }
       dismissEvent(eventId);
+    } else if (action === 'never_ask') {
+      const evt = feed.find(f => f.event?.id === eventId)?.event;
+      const data = evt?.data as Record<string, unknown> | null;
+      const merchant = data?.merchant as string;
+      if (merchant) {
+        merchantHintRepo.update(merchant.toLowerCase().trim(), { confirmStrategy: 'dismissed' });
+      }
+      dismissEvent(eventId);
+    } else if (action === 'log') {
+      const evt = feed.find(f => f.event?.id === eventId)?.event;
+      const data = evt?.data as Record<string, unknown> | null;
+      if (data?.category && data?.typicalAmount !== undefined) {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        await transactionRepo.insert({
+          id: nanoid(),
+          amount: rupeesToPaise((data.typicalAmount as number) ?? 0),
+          type: 'expense',
+          category: data.category as string,
+          merchant: (data.merchant as string) ?? null,
+          note: null,
+          date: today,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          isDeleted: false,
+        });
+        upsertRuleFromSuggestion({
+          id: eventId,
+          text: '',
+          category: data.category as string,
+          typicalAmount: data.typicalAmount as number,
+          merchant: (data.merchant as string) ?? undefined,
+          createdAt: Date.now(),
+        });
+      }
+      dismissEvent(eventId);
+      triggerRefresh();
+    } else if (action === 'create_rule') {
+      const evt = feed.find(f => f.event?.id === eventId)?.event;
+      const data = evt?.data as Record<string, unknown> | null;
+      if (data?.category && data?.typicalAmount !== undefined) {
+        upsertRuleFromSuggestion({
+          id: eventId,
+          text: '',
+          category: data.category as string,
+          typicalAmount: data.typicalAmount as number,
+          merchant: (data.merchant as string) ?? undefined,
+          createdAt: Date.now(),
+        });
+      }
+      dismissEvent(eventId);
+      triggerRefresh();
+    } else if (action === 'view_goals') {
+      window.location.hash = '/recurring';
+      dismissEvent(eventId);
+    } else if (action === 'read_more') {
+      window.location.hash = '/dashboard';
+      dismissEvent(eventId);
     } else if (action === 'pick_category') {
-      // Store the event ID for category picker context
-      actOnEvent(eventId);
+      setPickCategoryEventId(eventId);
     } else {
       actOnEvent(eventId);
     }
-  };
+  }, [feed, dismissEvent, actOnEvent, triggerRefresh, setPickCategoryEventId]);
 
   const handleEditEvent = (item: FeedItem) => {
     setEditItem(item);
@@ -155,9 +223,33 @@ export function ChatView() {
 
   const isConfigured = provider?.isConfigured() ?? false;
 
+  const filteredFeed = useMemo(() => {
+    if (feedFilter === 'all') return feed;
+    if (feedFilter === 'transactions') return feed.filter((f) => f.kind === 'transaction');
+    return feed.filter((f) => f.kind === 'query-response' || f.kind === 'event');
+  }, [feed, feedFilter]);
+
+  const TAB_OPTIONS: { key: FeedFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'transactions', label: 'Transactions' },
+    { key: 'queries', label: 'Queries' },
+  ];
+
   return (
     <div className="chat-container">
-      <SmartHeader refreshKey={refreshKey} />
+      <SmartHeader refreshKey={feedVersion} />
+
+      <div className="feed-tabs">
+        {TAB_OPTIONS.map((tab) => (
+          <button
+            key={tab.key}
+            className={`feed-tab ${feedFilter === tab.key ? 'feed-tab--active' : ''}`}
+            onClick={() => setFeedFilter(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <DraftBanner onLog={handleDraftLog} onDismiss={handleDraftDismiss} />
 
@@ -183,29 +275,25 @@ export function ChatView() {
       )}
 
       <div className="chat-content" ref={contentRef}>
-        {isLoading || (feed.length === 0 && isLoading) ? null : feed.length > 0 ? (
-          <>
-            <EventFeed
-              feed={feed}
-              isLoading={false}
-              onDismissEvent={dismissEvent}
-              onActEvent={handleActEvent}
-              onEditEvent={handleEditEvent}
-              contentRef={contentRef}
-            />
+        {isSending && (
+          <div className="thinking-placeholder">
+            <div className="thinking-shimmer-bar" />
+            <span className="thinking-label">Thinking…</span>
+          </div>
+        )}
 
-            {isSending && (
-              <div className="message assistant">
-                <div className="message-body">
-                  <div className="message-bubble">
-                    <div className="typing-indicator">
-                      <div className="dot" /><div className="dot" /><div className="dot" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
+        {isLoading || (filteredFeed.length === 0 && isLoading) ? null : filteredFeed.length > 0 ? (
+          <EventFeed
+            feed={filteredFeed}
+            isLoading={false}
+            budgetStatus={budgetStatusCache}
+            onDismissEvent={dismissEvent}
+            onActEvent={handleActEvent}
+            onEditEvent={handleEditEvent}
+            onDeleteTransaction={deleteTransaction}
+            onUndoDelete={undoDelete}
+            contentRef={contentRef}
+          />
         ) : (
           <EmptyState onQuickLog={triggerRefresh} />
         )}
@@ -232,15 +320,14 @@ export function ChatView() {
         </div>
       )}
 
-      <SuggestionStrip
-        isCollapsed={inputValue.length > 0}
-        dismissedIds={dismissedChips}
-        onDismiss={dismissChip}
-        onLogged={triggerRefresh}
-        refreshTrigger={chipRefresh}
-      />
-
       <div className="chat-input-container">
+        <SuggestionStrip
+          isCollapsed={inputValue.length > 0}
+          dismissedIds={dismissedChips}
+          onDismiss={dismissChip}
+          onLogged={triggerRefresh}
+          refreshTrigger={chipRefresh}
+        />
         <div className="chat-input-wrapper">
           <textarea
             ref={inputRef}
@@ -270,6 +357,13 @@ export function ChatView() {
           onSaved={handleEditSaved}
         />
       )}
+
+      <CategoryPicker
+        open={pickCategoryEventId !== null}
+        selected={null}
+        onSelect={handleCategoryPick}
+        onClose={() => setPickCategoryEventId(null)}
+      />
     </div>
   );
 }

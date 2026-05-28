@@ -3,7 +3,7 @@ import { ArrowLeft, Pencil, Trash2, Undo2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { transactionRepo } from '../../core/composition-root';
 import { formatINR, type Paise } from '../../core/domain/money';
-import type { Transaction } from '../../core/domain/types';
+import type { Transaction, BudgetStatusItem } from '../../core/domain/types';
 import { CategoryIcon } from '../chat/categoryIcons';
 import { EditTransactionModal } from '../chat/EditTransactionModal';
 
@@ -12,9 +12,10 @@ interface CategoryTransactionsViewProps {
   month: number;
   year: number;
   onBack: () => void;
+  budget?: BudgetStatusItem;
 }
 
-export function CategoryTransactionsView({ category, month, year, onBack }: CategoryTransactionsViewProps) {
+export function CategoryTransactionsView({ category, month, year, onBack, budget }: CategoryTransactionsViewProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
@@ -69,13 +70,23 @@ export function CategoryTransactionsView({ category, month, year, onBack }: Cate
 
   const total = transactions.reduce((sum, t) => sum + t.amount, 0 as Paise);
 
+  const barColor = budget
+    ? budget.percentUsed >= 100
+      ? 'var(--color-danger)'
+      : budget.percentUsed >= 75
+        ? 'var(--color-warning)'
+        : 'var(--color-accent)'
+    : undefined;
+
   if (loading) {
     return (
       <div className="drilldown-container">
         <div className="drilldown-header">
           <button className="drilldown-back" onClick={onBack}><ArrowLeft size={20} /></button>
           <CategoryIcon name={category} className="cat-icon" />
-          <span className="drilldown-title">{category}</span>
+          <div className="drilldown-header-info">
+            <span className="drilldown-title">{category}</span>
+          </div>
         </div>
         <div className="drilldown-loading">
           {[1, 2, 3].map((i) => (
@@ -93,13 +104,30 @@ export function CategoryTransactionsView({ category, month, year, onBack }: Cate
           <ArrowLeft size={20} />
         </button>
         <CategoryIcon name={category} className="cat-icon" />
-        <span className="drilldown-title">{category}</span>
+        <div className="drilldown-header-info">
+          <span className="drilldown-title">{category}</span>
+          <span className="drilldown-subtitle">{transactions.length} transaction{transactions.length !== 1 ? 's' : ''}</span>
+        </div>
+        <span className="drilldown-header-total">{formatINR(total as Paise)}</span>
       </div>
 
-      <div className="drilldown-summary">
-        <span>{transactions.length} transaction{transactions.length !== 1 ? 's' : ''}</span>
-        <span className="drilldown-summary-total">{formatINR(total as Paise)}</span>
-      </div>
+      {budget && (
+        <div className="drilldown-budget-section">
+          <div className="budget-bar budget-bar--large">
+            <div
+              className="budget-bar-fill"
+              style={{
+                width: `${Math.min(budget.percentUsed, 100)}%`,
+                background: barColor,
+              }}
+            />
+          </div>
+          <div className="drilldown-budget-meta">
+            <span>{formatINR(budget.spent)} of {formatINR(budget.budgetAmount)} budget</span>
+            <span>{budget.percentUsed.toFixed(0)}% used</span>
+          </div>
+        </div>
+      )}
 
       {deleteUndo && (
         <div className="undo-toast">
@@ -120,13 +148,14 @@ export function CategoryTransactionsView({ category, month, year, onBack }: Cate
             <div key={txn.id} className="drilldown-item">
               <div className="drilldown-item-left">
                 <div className="drilldown-item-date">{format(new Date(txn.date), 'dd MMM')}</div>
-                <div className="drilldown-item-details">
-                  {txn.merchant && <span className="drilldown-item-merchant">{txn.merchant}</span>}
-                  {txn.description && <span className="drilldown-item-desc">{txn.description}</span>}
-                  {!txn.merchant && !txn.description && txn.note && (
-                    <span className="drilldown-item-desc">{txn.note}</span>
-                  )}
+                <div className="drilldown-item-primary">
+                  {txn.merchant || txn.description || txn.note || 'Untitled'}
                 </div>
+                {(txn.merchant && (txn.description || txn.note)) && (
+                  <div className="drilldown-item-secondary">
+                    {txn.description || txn.note}
+                  </div>
+                )}
               </div>
               <div className="drilldown-item-right">
                 <span className="drilldown-item-amount">{formatINR(txn.amount)}</span>

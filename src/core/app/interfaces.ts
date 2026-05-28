@@ -4,7 +4,7 @@
  */
 import type {
   Transaction, Message, MerchantHint, Category, Goal,
-  MonthlySummary, CategoryBreakdownItem, BudgetStatusResult, StoredBackup, AppEvent,
+  MonthlySummary, CategoryBreakdownItem, BudgetStatusResult, StoredBackup, AppEvent, SpendingTrend,
 } from '../domain/types';
 import type { Paise } from '../domain/money';
 
@@ -56,6 +56,11 @@ export interface MessageRepository {
 export interface CategoryRepository {
   getAll(): Promise<Category[]>;
   create(name: string, icon: string): Promise<{ name: string; icon: string; existed: boolean }>;
+  update(name: string, fields: { name?: string; icon?: string }): Promise<boolean>;
+  delete(name: string): Promise<boolean>;
+  setBudget(name: string, budgetAmount: number): Promise<boolean>;
+  clearBudget(name: string): Promise<boolean>;
+  getBudgeted(): Promise<Category[]>;
 }
 
 // ─── Merchant Hint Repository ────────────────────────────────────────────
@@ -63,6 +68,9 @@ export interface CategoryRepository {
 export interface MerchantHintRepository {
   upsert(merchant: string, category: string, confirmStrategy?: string): Promise<void>;
   getTop(limit?: number): Promise<MerchantHint[]>;
+  getAll(): Promise<MerchantHint[]>;
+  update(canonicalName: string, fields: { category?: string; confirmStrategy?: string }): Promise<boolean>;
+  delete(canonicalName: string): Promise<void>;
 }
 
 // ─── Goal Repository ─────────────────────────────────────────────────────
@@ -90,6 +98,7 @@ export interface SummaryRepository {
   getMonthlySummary(month: number, year: number): Promise<MonthlySummary>;
   getCategoryBreakdown(startDate: string, endDate: string): Promise<CategoryBreakdownItem[]>;
   getBudgetStatus(): Promise<BudgetStatusResult>;
+  getSpendingTrend(): Promise<SpendingTrend>;
 }
 
 // ─── Insight Repository ──────────────────────────────────────────────────

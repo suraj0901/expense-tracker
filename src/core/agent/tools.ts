@@ -178,6 +178,139 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ['name'],
     },
   },
+  {
+    name: 'update_category',
+    description: 'Rename a category or change its icon.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Current category name' },
+        new_name: { type: 'string', description: 'New name for the category' },
+        icon: { type: 'string', description: 'New emoji icon' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'delete_category',
+    description: 'Delete a category by name.',
+    parameters: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'Category name to delete' } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'set_budget',
+    description: 'Set a monthly budget for a category. Amount in rupees.',
+    parameters: {
+      type: 'object',
+      properties: {
+        category_name: { type: 'string', description: 'Category to set budget for' },
+        amount: { type: 'number', description: 'Monthly budget amount in rupees' },
+      },
+      required: ['category_name', 'amount'],
+    },
+  },
+  {
+    name: 'get_budgets',
+    description: 'List all categories that have budgets set, with their monthly amounts.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'delete_budget',
+    description: 'Remove the budget from a category.',
+    parameters: {
+      type: 'object',
+      properties: { category_name: { type: 'string', description: 'Category to remove budget from' } },
+      required: ['category_name'],
+    },
+  },
+  {
+    name: 'get_spending_trend',
+    description: 'Compare current month spending vs previous month. Shows income, expense, and percentage changes.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_merchant_mappings',
+    description: 'List all known merchant→category mappings and their confirmation strategies.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'update_merchant_mapping',
+    description: 'Change the category or confirmation strategy for a merchant mapping.',
+    parameters: {
+      type: 'object',
+      properties: {
+        canonical_name: { type: 'string', description: 'The merchant name (lowercase, as shown by get_merchant_mappings)' },
+        category: { type: 'string', description: 'New category for this merchant' },
+        confirm_strategy: { type: 'string', description: "Confirmation strategy: 'auto', 'ask_always', or 'dismissed'" },
+      },
+      required: ['canonical_name'],
+    },
+  },
+  {
+    name: 'delete_merchant_mapping',
+    description: 'Completely remove a merchant→category mapping. The AI will re-learn the merchant next time it appears.',
+    parameters: {
+      type: 'object',
+      properties: { canonical_name: { type: 'string', description: 'Merchant name to forget' } },
+      required: ['canonical_name'],
+    },
+  },
+  {
+    name: 'get_auto_log_rules',
+    description: 'List all auto-log rules — both active/pending and dismissed. Shows status, category, amount, merchant.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'enable_auto_log_rule',
+    description: 'Enable an auto-log rule so transactions are created automatically going forward.',
+    parameters: {
+      type: 'object',
+      properties: { rule_id: { type: 'string', description: 'Rule ID from get_auto_log_rules' } },
+      required: ['rule_id'],
+    },
+  },
+  {
+    name: 'disable_auto_log_rule',
+    description: 'Disable an auto-log rule. The rule will no longer create automatic transactions (but is not deleted).',
+    parameters: {
+      type: 'object',
+      properties: { rule_id: { type: 'string', description: 'Rule ID from get_auto_log_rules' } },
+      required: ['rule_id'],
+    },
+  },
+  {
+    name: 'delete_auto_log_rule',
+    description: 'Permanently delete an auto-log rule (either active or dismissed).',
+    parameters: {
+      type: 'object',
+      properties: { rule_id: { type: 'string', description: 'Rule ID from get_auto_log_rules' } },
+      required: ['rule_id'],
+    },
+  },
+  {
+    name: 'get_event_feed',
+    description: 'Get recent events — transaction logs, merchant confirmations, budget warnings, recurring suggestions.',
+    parameters: {
+      type: 'object',
+      properties: { limit: { type: 'number', description: 'Number of recent events. Default 10.' } },
+      required: [],
+    },
+  },
+  {
+    name: 'get_insights',
+    description: 'Get AI-generated monthly spending insights. Defaults to current month.',
+    parameters: {
+      type: 'object',
+      properties: {
+        month: { type: 'number', description: 'Month (1-12). Defaults to current month.' },
+        year: { type: 'number', description: 'Year. Defaults to current year.' },
+      },
+      required: [],
+    },
+  },
 ];
 
 // Re-export schemas for convenience

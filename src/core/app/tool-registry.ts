@@ -11,6 +11,7 @@ import type { ToolDefinition } from '../agent/tools';
 import type {
   TransactionRepository, CategoryRepository,
   GoalRepository, SummaryRepository,
+  MerchantHintRepository, EventRepository, InsightRepository,
 } from './interfaces';
 import { logger } from '../logger';
 
@@ -19,6 +20,9 @@ export interface ToolDependencies {
   categoryRepo: CategoryRepository;
   goalRepo: GoalRepository;
   summaryRepo: SummaryRepository;
+  merchantHintRepo: MerchantHintRepository;
+  eventRepo: EventRepository;
+  insightRepo: InsightRepository;
 }
 
 export interface ToolHandler {

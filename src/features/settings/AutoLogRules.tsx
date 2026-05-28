@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import { ListChecks, X } from 'lucide-react';
 import {
   getAutoLogRules, toggleAutoLogRule, removeAutoLogRule,
   type AutoLogRule,
@@ -38,7 +38,7 @@ export function AutoLogRules() {
   return (
     <div className="settings-section">
       <h2 onClick={() => setExpanded(!expanded)} style={{ cursor: 'pointer' }}>
-        <RefreshCw size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+        <ListChecks size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
         Auto-Log Rules
         <span className="auto-log-badge">{enabledCount}/{rules.length} active</span>
       </h2>

@@ -159,7 +159,7 @@ Runs every 30 minutes (and on tab visibility change):
 - **Money in paise** — all amounts stored as integer paise to avoid floating-point errors.
 - **Soft deletes only** — transactions are never hard-deleted.
 - **Cross-origin isolation** — COOP/COEP headers for OPFS support. Graceful fallback to in-memory mode.
-- **Hash-based routing** — three tabs: Chat, Dashboard, Settings.
+- **Hash-based routing** — four tabs: Chat, Dashboard, Recurring, Settings.
 - **Dark theme** — `#0a0a0f` background with Inter font.
 
 ---
@@ -173,7 +173,7 @@ Runs every 30 minutes (and on tab visibility change):
 
 ### FB-01 — SMS Transaction Detection & Notification
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 Track user's SMS messages in the background. When a transaction message (bank alert, UPI, card spend) is detected, fire a notification with AI-extracted amount, auto-categorized expense/income, merchant, and other useful info. Let user modify details via free-form input or quick "Log it" / "Dismiss" actions.
 
@@ -193,7 +193,7 @@ Track user's SMS messages in the background. When a transaction message (bank al
 
 ### FB-02 — AI Merchant Mapping with Confirmation
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 AI auto-categorizes and maps merchants (e.g., Dmart → Groceries, Rapido → Transport). When merchant mapping is ambiguous or confidence is low, AI proactively asks for confirmation via an event in the chat feed rather than silently guessing wrong.
 
@@ -212,7 +212,7 @@ AI auto-categorizes and maps merchants (e.g., Dmart → Groceries, Rapido → Tr
 
 ### FB-03 — Recurring Auto-Log with History Tab
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 A dedicated "Recurring" tab in the UI showing all recurring auto-log suggestions. AI keeps a history of **all** suggestions — accepted AND dismissed — so it never repeats a previously dismissed suggestion. Uses historical data to improve future suggestions.
 
@@ -233,7 +233,7 @@ A dedicated "Recurring" tab in the UI showing all recurring auto-log suggestions
 
 ### FB-04 — In-App Event Feed (Chat Tab Overhaul)
 
-**Priority:** P0 | **Status:** 🔴 Planned
+**Priority:** P0 | **Status:** ✅ Done
 
 Redesign the Chat tab from a transaction-display feed into an **event feed**. Instead of showing raw transaction messages, show structured event cards: AI asks about merchant mapping, recurring log suggestions, budget warnings, goal milestones, monthly insights. Each event has contextual action buttons and edit options. This eliminates the need for a separate notification view since all notifications are important user-facing events.
 
@@ -260,7 +260,7 @@ Redesign the Chat tab from a transaction-display feed into an **event feed**. In
 
 ### FB-05 — Permission Onboarding Flow
 
-**Priority:** P0 | **Status:** 🔴 Planned
+**Priority:** P0 | **Status:** ✅ Done
 
 First-time app open shows a mandatory permissions onboarding screen. User cannot proceed until all required permissions are granted. Clear messaging explains why each permission is needed.
 
@@ -281,7 +281,7 @@ First-time app open shows a mandatory permissions onboarding screen. User cannot
 
 ### FB-06 — Monthly AI Insights & Report
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 At month-end, AI generates a comprehensive insight report covering expenses, income, goals, budgets, trends, and how much the user's data has helped personalize the app. Notification is sent when the insight is ready. Viewable in a dedicated UI with a download option (PDF).
 
@@ -320,7 +320,7 @@ When user asks a non-logging query (e.g., "how much did I spend on food last mon
 
 ### FB-08 — Editable Transactions with Chat Context
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 Every transaction shown in the UI (event feed, dashboard list, category drill-down) has Edit and Delete actions. Additionally, transactions can be "included in chat" — attaching them as context for the next AI message so the user can ask questions about specific transactions.
 
@@ -339,7 +339,7 @@ Every transaction shown in the UI (event feed, dashboard list, category drill-do
 
 ### FB-09 — Rich Transaction Metadata (Description & Tags)
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 Transactions should store as much detail as possible extracted from the user's message. In addition to amount/merchant/category, the AI should extract a **description** (human-readable summary) and **tags** (short, queryable labels) from the natural language input.
 
@@ -390,7 +390,7 @@ Clicking a category in the Dashboard (pie chart segment or category breakdown li
 
 ### FB-11 — Personalized Quick Suggestion Chips
 
-**Priority:** P1 | **Status:** 🔴 Planned
+**Priority:** P1 | **Status:** ✅ Done
 
 Quick suggestion chips shown above the chat input that start generic but become increasingly personalized as the app learns user behavior. Accounts for time-of-day, day-of-week, and transaction history to surface the most likely next transactions.
 
@@ -414,7 +414,7 @@ Quick suggestion chips shown above the chat input that start generic but become 
 
 ### FB-12 — Event Persistence & History
 
-**Priority:** P2 | **Status:** 🔴 Planned
+**Priority:** P2 | **Status:** ✅ Done
 
 Events from the event feed (FB-04) should persist across sessions. Dismissed events are archived but still queryable. The notification tray concept (FB-04 replaces it) means events are the primary interaction history — they need reliable persistence.
 
@@ -434,12 +434,12 @@ Events from the event feed (FB-04) should persist across sessions. Dismissed eve
 
 ## Discussion Points (Cross-Cutting)
 
-1. **FB-04 + FB-01 + FB-02 + FB-03 interplay:** The event feed is the central hub. SMS-detected transactions create events. Merchant mapping confirmations create events. Recurring suggestions create events. The architecture needs a unified event pipeline.
+1. **~~FB-04 + FB-01 + FB-02 + FB-03 interplay~~:** ✅ Resolved. A unified event pipeline is in place via the event bus in `composition-root`. All four features feed into the event system.
 
-2. **Notification strategy:** If FB-04 replaces the separate notification view, do we still need browser push notifications? Or is the in-app event feed sufficient? (Leaning: push for time-sensitive things like budget warnings; in-app for everything else.)
+2. **~~Notification strategy~~:** ✅ Resolved. Browser push notifications for time-sensitive alerts (budget warnings); in-app event feed for everything else.
 
-3. **Tab navigation:** Current tabs: Chat | Dashboard | Settings. Proposed: Chat (event feed) | Dashboard | Recurring | Settings. 4-tab bottom nav is standard on mobile. Should "Insights" (FB-06) be a sub-view of Dashboard or a 5th tab?
+3. **~~Tab navigation~~:** ✅ Resolved. 4-tab bottom nav: Chat (event feed) | Dashboard | Recurring | Settings. Insights are shown inline on the Dashboard tab.
 
-4. **Offline behavior:** SMS detection (FB-01) won't work offline. Monthly insights (FB-06) need connectivity for AI generation. Most other features should be offline-capable. What's the degraded experience?
+4. **Offline behavior:** SMS detection (FB-01) won't work offline. Monthly insights (FB-06) need connectivity for AI generation. Most other features are offline-capable.
 
-5. **Privacy:** SMS reading is extremely sensitive. How do we communicate this clearly? "All SMS processing happens on-device. No SMS data is ever sent to any server." (True because AI calls send extracted transaction data, not raw SMS.)
+5. **Privacy:** SMS reading is extremely sensitive. "All SMS processing happens on-device. No SMS data is ever sent to any server." Communicated in the onboarding flow and privacy docs.

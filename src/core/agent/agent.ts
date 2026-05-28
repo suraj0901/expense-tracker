@@ -153,9 +153,15 @@ async function executeToolLoop(
   allToolCalls: ToolCallRecord[],
   traceId: string
 ): Promise<ProviderResponse> {
+  const MAX_ITERATIONS = 8;
   let loopIteration = 0;
   while (response.hasToolCalls) {
     loopIteration++;
+    if (loopIteration > MAX_ITERATIONS) {
+      logger.warn('agent:toolLoopMaxIterations', { traceId, iterations: loopIteration });
+      response = { content: 'I ran into an issue processing your request.', hasToolCalls: false, toolCalls: [], raw: null };
+      break;
+    }
     logger.info('agent:toolLoopIteration', {
       traceId,
       iteration: loopIteration,

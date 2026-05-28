@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { format, subMonths, addMonths, differenceInDays } from 'date-fns';
-import { ChevronLeft, ChevronRight, Target, Sparkles, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Target, Sparkles, BarChart3, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { formatINR, paiseToRupees } from '../../core/domain/money';
 import type { Paise } from '../../core/domain/money';
 import { summaryRepo, goalRepo, insightRepo } from '../../core/composition-root';
@@ -16,6 +16,7 @@ import { logger } from '../../core/logger';
 import { useSettingsStore } from '../settings/settings.store';
 import { generateInsight } from './insights';
 import { CategoryIcon } from '../chat/categoryIcons';
+import { CategoryTransactionsView } from './CategoryTransactionsView';
 
 const CHART_COLORS = [
   '#818cf8', '#f472b6', '#34d399', '#fbbf24',
@@ -40,6 +41,7 @@ export function DashboardView() {
   const [insightLoading, setInsightLoading] = useState(false);
   const [previousSummary, setPreviousSummary] = useState<MonthlySummary | null>(null);
   const [budgetStatus, setBudgetStatus] = useState<{ hasBudgets: boolean; items: BudgetStatusItem[] } | null>(null);
+  const [drillCategory, setDrillCategory] = useState<string | null>(null);
   const provider = useSettingsStore((s) => s.provider);
 
   const month = currentDate.getMonth() + 1;
@@ -169,6 +171,17 @@ export function DashboardView() {
   const goToPrevMonth = () => setCurrentDate((d) => subMonths(d, 1));
   const goToNextMonth = () => setCurrentDate((d) => addMonths(d, 1));
   const monthLabel = format(currentDate, 'MMM yyyy');
+
+  if (drillCategory) {
+    return (
+      <CategoryTransactionsView
+        category={drillCategory}
+        month={month}
+        year={year}
+        onBack={() => setDrillCategory(null)}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -337,6 +350,10 @@ export function DashboardView() {
                       data={summary.categoryBreakdown}
                       cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                       paddingAngle={3} dataKey="total" nameKey="category" stroke="none"
+                      onClick={(data) => {
+                        if (data?.name) setDrillCategory(String(data.name));
+                      }}
+                      style={{ cursor: 'pointer' }}
                     >
                       {summary.categoryBreakdown.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
@@ -359,8 +376,14 @@ export function DashboardView() {
             <h3>Category Breakdown</h3>
             <div className="category-list">
               {summary.categoryBreakdown.map((cat, i) => (
-                  <div key={cat.category} className="category-item">
-                    <CategoryIcon name={cat.category} className="cat-icon" />
+                  <div
+                    key={cat.category}
+                    className="category-item category-item--clickable"
+                    onClick={() => setDrillCategory(cat.category)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrillCategory(cat.category); } }}
+                  >  <CategoryIcon name={cat.category} className="cat-icon" />
                     <div className="cat-info">
                       <div className="cat-name">{cat.category}</div>
                       <div className="cat-count">{cat.count} transaction{cat.count !== 1 ? 's' : ''}</div>
@@ -374,9 +397,12 @@ export function DashboardView() {
                         />
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="cat-amount">{formatINR(cat.total)}</div>
-                      <div className="cat-percentage">{cat.percentage.toFixed(1)}%</div>
+                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div>
+                        <div className="cat-amount">{formatINR(cat.total)}</div>
+                        <div className="cat-percentage">{cat.percentage.toFixed(1)}%</div>
+                      </div>
+                      <ChevronRightIcon size={16} className="cat-chevron" />
                     </div>
                   </div>
                 ))}

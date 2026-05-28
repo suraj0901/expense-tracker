@@ -140,11 +140,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         eventRepo.getRecent(100),
       ]);
       const items: FeedItem[] = [
-        ...msgs.map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
+        ...msgs.filter(m => m.role === 'user').map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
         ...evts.filter(e => e.status === 'pending').map(e => ({ kind: 'event' as const, event: e, timestamp: e.createdAt })),
       ].sort((a, b) => a.timestamp - b.timestamp);
       set({ feed: items, isLoading: false });
-      logger.debug('chat:loadFeed', { messages: msgs.length, events: evts.length, feed: items.length });
+      logger.debug('chat:loadFeed', { userMessages: msgs.filter(m => m.role === 'user').length, events: evts.length, feed: items.length });
     } catch (error) {
       set({ error: 'Failed to load feed', isLoading: false });
       logger.error('chat:loadFeedFailed', error instanceof Error ? error : new Error(String(error)));
@@ -158,7 +158,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         eventRepo.getRecent(100),
       ]);
       const items: FeedItem[] = [
-        ...msgs.map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
+        ...msgs.filter(m => m.role === 'user').map(m => ({ kind: 'message' as const, message: m, timestamp: m.createdAt })),
         ...evts.filter(e => e.status === 'pending').map(e => ({ kind: 'event' as const, event: e, timestamp: e.createdAt })),
       ].sort((a, b) => a.timestamp - b.timestamp);
       set({ feed: items });

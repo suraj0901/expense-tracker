@@ -45,9 +45,9 @@ export function ModelDownloadCard({ provider }: Props) {
           <StatusIcon size={18} />
         </span>
         <div className="model-download-info">
-          <div className="model-download-title">Qwen 3.5 2B</div>
+          <div className="model-download-title">SmolLM2 360M</div>
           <div className="model-download-desc">
-            {state.status === 'idle' && '~1 GB download · Runs fully offline'}
+            {state.status === 'idle' && '~200 MB download · Runs fully offline'}
             {state.status === 'ready' && 'Loaded and ready · All data stays on device'}
             {state.status === 'error' && state.text}
             {state.status === 'downloading' && state.text}

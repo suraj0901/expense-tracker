@@ -70,11 +70,12 @@ export const eventRepo = createEventRepository();
 
 // Wrap transactionRepo with event emission — all tools and callers
 // that import transactionRepo will automatically emit events.
-const _rawRepo = transactionRepo;
+const originalInsert = transactionRepo.insert.bind(transactionRepo);
+const originalUpdate = transactionRepo.update.bind(transactionRepo);
 const enriched: TransactionRepository = {
-  ..._rawRepo,
+  ...transactionRepo,
   async insert(params: InsertTransactionParams) {
-    const result = await _rawRepo.insert(params);
+    const result = await originalInsert(params);
     eventBus.emit('transaction:created', {
       merchant: params.merchant ?? null,
       category: params.category,
@@ -84,7 +85,7 @@ const enriched: TransactionRepository = {
     return result;
   },
   async update(id: string, params: import('./app/interfaces').UpdateTransactionParams) {
-    const result = await _rawRepo.update(id, params);
+    const result = await originalUpdate(id, params);
     eventBus.emit('transaction:updated', {
       merchant: params.merchant,
       category: params.category,

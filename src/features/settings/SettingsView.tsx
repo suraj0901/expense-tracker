@@ -121,7 +121,7 @@ export function SettingsView() {
         >
           <div className="radio" />
           <div className="provider-info">
-            <div className="provider-name">Qwen 3.5 2B (Local)</div>
+            <div className="provider-name">SmolLM2 360M (Local)</div>
             <div className="provider-desc">
               Runs entirely on device · No API key · No network
             </div>

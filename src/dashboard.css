@@ -102,6 +102,29 @@
   border-radius: var(--radius-md);
 }
 
+.category-item--clickable {
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.category-item--clickable:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border);
+}
+
+.category-item--clickable:active {
+  background: var(--color-accent-muted);
+}
+
+.cat-chevron {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.category-item--clickable:hover .cat-chevron {
+  color: var(--color-accent-text);
+}
+
 .category-item .cat-icon { width: 20px; height: 20px; flex-shrink: 0; }
 .category-item .cat-info { flex: 1; min-width: 0; }
 .category-item .cat-name { font-size: 0.8125rem; font-weight: 500; }
@@ -210,3 +233,120 @@
 .empty-state .icon { width: 48px; height: 48px; opacity: 0.35; color: var(--color-text-muted); }
 .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--color-text-secondary); }
 .empty-state p { font-size: 0.75rem; color: var(--color-text-muted); max-width: 240px; }
+
+/* ─── Drill-Down (Category Transactions) ─────────────────────────────── */
+
+.drilldown-container {
+  padding: 16px; display: flex; flex-direction: column; gap: 16px;
+  height: 100%; overflow-y: auto; overflow-x: hidden;
+}
+
+.drilldown-header {
+  display: flex; align-items: center; gap: 10px;
+}
+
+.drilldown-back {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: var(--radius-full);
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  color: var(--color-text-secondary); cursor: pointer;
+  transition: all 0.15s ease; flex-shrink: 0;
+}
+
+.drilldown-back:hover {
+  border-color: var(--color-accent); color: var(--color-accent-text);
+}
+
+.drilldown-title {
+  font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em;
+}
+
+.drilldown-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+  font-size: 0.8125rem; color: var(--color-text-secondary);
+}
+
+.drilldown-summary-total {
+  font-weight: 700; font-size: 0.9375rem; color: var(--color-text-primary);
+}
+
+.drilldown-loading {
+  padding: 16px 0;
+}
+
+.drilldown-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 48px 24px; text-align: center;
+  flex: 1;
+}
+
+.drilldown-empty p {
+  font-size: 0.8125rem; color: var(--color-text-muted);
+}
+
+.drilldown-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.drilldown-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+}
+
+.drilldown-item-left {
+  flex: 1; min-width: 0;
+}
+
+.drilldown-item-date {
+  font-size: 0.6875rem; color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.drilldown-item-details {
+  font-size: 0.8125rem; color: var(--color-text-primary);
+  font-weight: 500; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drilldown-item-merchant {
+  font-weight: 600;
+}
+
+.drilldown-item-desc {
+  color: var(--color-text-muted);
+  font-weight: 400; margin-left: 6px;
+}
+
+.drilldown-item-right {
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+
+.drilldown-item-amount {
+  font-size: 0.875rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-expense);
+}
+
+.drilldown-item-action {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--radius-sm);
+  background: none; border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted); cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.drilldown-item-action:hover {
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.drilldown-item-action--danger:hover {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: var(--color-danger);
+  background: rgba(248, 113, 113, 0.06);
+}

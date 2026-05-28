@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Plus } from 'lucide-react';
-import type { FeedItem } from '../../../core/domain/types';
-import { paiseToRupees, rupeesToPaise } from '../../../core/domain/money';
-import type { Paise } from '../../../core/domain/money';
-import { categoryRepo, transactionRepo } from '../../../core/composition-root';
-import { CategoryPicker } from '../CategoryPicker';
+import { useState, useEffect, useCallback } from "react";
+import { X } from "lucide-react";
+import type { FeedItem } from "@/core/domain/types";
+import { transactionRepo } from "@/core/composition-root";
+import { paiseToRupees, rupeesToPaise, type Paise } from "@/core/domain/money";
+import { CategoryPicker } from "./CategoryPicker";
 
 interface EditTransactionModalProps {
   item: FeedItem;
@@ -12,19 +11,23 @@ interface EditTransactionModalProps {
   onSaved: () => void;
 }
 
-export function EditTransactionModal({ item, onClose, onSaved }: EditTransactionModalProps) {
+export function EditTransactionModal({
+  item,
+  onClose,
+  onSaved,
+}: EditTransactionModalProps) {
   const event = item.event;
   const data = event?.data as Record<string, unknown> | null;
-  const transactionId = (data?.transactionId as string) ?? '';
+  const transactionId = (data?.transactionId as string) ?? "";
 
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState((data?.category as string) ?? '');
-  const [merchant, setMerchant] = useState((data?.merchant as string) ?? '');
-  const [note, setNote] = useState('');
-  const [description, setDescription] = useState('');
-  const [date, setDate] = useState('');
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState((data?.category as string) ?? "");
+  const [merchant, setMerchant] = useState((data?.merchant as string) ?? "");
+  const [note, setNote] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [tagInput, setTagInput] = useState("");
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +40,9 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
       if (txn) {
         setAmount(String(paiseToRupees(txn.amount as Paise)));
         setCategory(txn.category);
-        setMerchant(txn.merchant ?? '');
-        setNote(txn.note ?? '');
-        setDescription(txn.description ?? '');
+        setMerchant(txn.merchant ?? "");
+        setNote(txn.note ?? "");
+        setDescription(txn.description ?? "");
         setDate(txn.date);
         setTags(txn.tags ?? []);
       }
@@ -54,11 +57,11 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
   }, [loadTransaction]);
 
   const addTag = () => {
-    const t = tagInput.trim().toLowerCase().replace(/\s+/g, '-');
+    const t = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
     if (t && !tags.includes(t)) {
       setTags([...tags, t]);
     }
-    setTagInput('');
+    setTagInput("");
   };
 
   const removeTag = (tag: string) => {
@@ -66,11 +69,11 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addTag();
     }
-    if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+    if (e.key === "Backspace" && !tagInput && tags.length > 0) {
       removeTag(tags[tags.length - 1]);
     }
   };
@@ -79,15 +82,15 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
     setError(null);
     const amountNum = Number(amount);
     if (!amountNum || amountNum <= 0) {
-      setError('Enter a valid amount');
+      setError("Enter a valid amount");
       return;
     }
     if (!category) {
-      setError('Select a category');
+      setError("Select a category");
       return;
     }
     if (!transactionId) {
-      setError('No transaction to edit');
+      setError("No transaction to edit");
       return;
     }
 
@@ -96,15 +99,15 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
       await transactionRepo.update(transactionId, {
         amount: rupeesToPaise(amountNum),
         category,
-        merchant: merchant || null,
-        note: note || null,
-        description: description || null,
+        merchant: merchant || undefined,
+        note: note || undefined,
+        description: description || undefined,
         tags: tags.length > 0 ? tags : undefined,
         updatedAt: Date.now(),
       });
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -112,10 +115,10 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
   return (
@@ -123,7 +126,9 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
       <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Edit Transaction</h3>
-          <button className="modal-close" onClick={onClose}><X size={20} /></button>
+          <button className="modal-close" onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
 
         {error && <div className="modal-error">{error}</div>}
@@ -146,7 +151,7 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
               className="modal-category-btn"
               onClick={() => setShowCategoryPicker(true)}
             >
-              {category || 'Select category...'}
+              {category || "Select category..."}
             </button>
           </div>
 
@@ -195,7 +200,9 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
               {tags.map((tag) => (
                 <span key={tag} className="modal-tag">
                   {tag}
-                  <button onClick={() => removeTag(tag)}><X size={12} /></button>
+                  <button onClick={() => removeTag(tag)}>
+                    <X size={12} />
+                  </button>
                 </span>
               ))}
               <input
@@ -204,7 +211,7 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
                 onBlur={addTag}
-                placeholder={tags.length === 0 ? 'Add tag...' : ''}
+                placeholder={tags.length === 0 ? "Add tag..." : ""}
                 className="modal-tag-input"
               />
             </div>
@@ -212,9 +219,15 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
         </div>
 
         <div className="modal-footer">
-          <button className="modal-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="modal-btn-save" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save'}
+          <button className="modal-btn-cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="modal-btn-save"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
@@ -222,7 +235,10 @@ export function EditTransactionModal({ item, onClose, onSaved }: EditTransaction
       <CategoryPicker
         open={showCategoryPicker}
         selected={category}
-        onSelect={(cat) => { setCategory(cat); setShowCategoryPicker(false); }}
+        onSelect={(cat) => {
+          setCategory(cat);
+          setShowCategoryPicker(false);
+        }}
         onClose={() => setShowCategoryPicker(false)}
       />
     </div>

@@ -1,19 +1,24 @@
 /**
  * LocalAIProvider — WebLLM-backed provider running models in the browser.
  *
- * Uses @mlc-ai/web-llm with Qwen3.5-2B. Model downloads on first use
+ * Uses @mlc-ai/web-llm with SmolLM2-360M. Model downloads on first use
  * with progress reporting. Tool calling via prompt-engineered XML tags
  * since small models don't support native function calling in WebLLM.
  *
  * This provider is optional — users must explicitly enable it in settings.
  */
-import { CreateMLCEngine, type MLCEngine, type InitProgressReport } from '@mlc-ai/web-llm';
+import {
+  CreateMLCEngine,
+  type MLCEngine,
+  type InitProgressReport,
+  type ChatCompletionMessageParam,
+} from '@mlc-ai/web-llm';
 import type { AIProvider, ProviderMessage, ProviderResponse } from './types';
 import type { ToolDefinition } from '../agent/tools';
 
 // ─── Model ──────────────────────────────────────────────────────────────
 
-const MODEL_ID = 'Qwen3.5-2B-q4f16_1-MLC';
+const MODEL_ID = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
 
 // ─── Tool prompt ────────────────────────────────────────────────────────
 
@@ -103,7 +108,7 @@ type DownloadListener = (state: DownloadState) => void;
 // ─── Provider ───────────────────────────────────────────────────────────
 
 export class LocalAIProvider implements AIProvider {
-  readonly name = 'Qwen 3.5 2B (Local)';
+  readonly name = 'SmolLM2 360M (Local)';
   readonly id = 'webllm';
 
   private engine: MLCEngine | null = null;
@@ -143,16 +148,22 @@ export class LocalAIProvider implements AIProvider {
     this.emit();
 
     try {
-      this.engine = await CreateMLCEngine(MODEL_ID, {
-        initProgressCallback: (report: InitProgressReport) => {
-          this.state = {
-            status: 'downloading',
-            progress: report.progress,
-            text: report.text,
-          };
-          this.emit();
+      this.engine = await CreateMLCEngine(
+        MODEL_ID,
+        {
+          initProgressCallback: (report: InitProgressReport) => {
+            this.state = {
+              status: 'downloading',
+              progress: report.progress,
+              text: report.text,
+            };
+            this.emit();
+          },
         },
-      });
+        // SmolLM2-360M has a smaller default context window. Bump it to
+        // fit the system prompt + tool descriptions + 20 messages of history.
+        { context_window_size: 8192 },
+      );
       this.state = { status: 'ready', progress: 1, text: 'Model ready' };
       this.emit();
     } catch (err) {
@@ -184,20 +195,35 @@ export class LocalAIProvider implements AIProvider {
       }
     }
 
-    // Inject tool prompt into the system message
+    // Inject tool prompt into the system message — only on the first
+    // system message. Strip any prior tool prompt to prevent
+    // compounding across loop iterations.
     const toolPrompt = buildToolPrompt(tools);
-    const processedMessages = messages.map((m) => {
+    const TOOL_PROMPT_MARKER = '\n\nYou have access to these tools.';
+    const processedMessages: ChatCompletionMessageParam[] = messages.map((m) => {
       if (m.role === 'system') {
-        return { role: 'system' as const, content: m.content + toolPrompt };
+        // Strip any previously injected tool prompt, then add fresh one
+        const baseContent = m.content.includes(TOOL_PROMPT_MARKER)
+          ? m.content.substring(0, m.content.indexOf(TOOL_PROMPT_MARKER))
+          : m.content;
+        return { role: 'system', content: baseContent + toolPrompt };
       }
       if (m.role === 'user') {
-        return { role: 'user' as const, content: m.content };
+        return { role: 'user', content: m.content };
       }
       if (m.role === 'assistant') {
-        return { role: 'assistant' as const, content: m.content };
+        // Reconstruct XML from structured toolCalls so the model sees its
+        // own tool calls in the conversation history.
+        const xmlBlocks = (m.toolCalls ?? []).map(
+          (tc) => `<tool_call>\n${JSON.stringify({ name: tc.name, arguments: tc.args })}\n</tool_call>`
+        ).join('\n');
+        const fullContent = xmlBlocks ? (m.content ? m.content + '\n' + xmlBlocks : xmlBlocks) : m.content;
+        return { role: 'assistant', content: fullContent };
       }
-      // tool result — format as user message since local models don't have tool role
-      return { role: 'user' as const, content: `Tool result (${m.toolCallId}): ${m.content}` };
+      // Tool result — format as user message since XML-based models
+      // don't understand the 'tool' role. The model needs to see results
+      // in the conversation to continue tool calling.
+      return { role: 'user', content: `Tool result for ${m.toolCallId}: ${m.content}` };
     });
 
     const response = await this.engine.chat.completions.create({

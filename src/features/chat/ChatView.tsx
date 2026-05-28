@@ -163,14 +163,6 @@ export function ChatView() {
 
       <OfflineBanner />
 
-      <SuggestionStrip
-        isCollapsed={inputValue.length > 0}
-        dismissedIds={dismissedChips}
-        onDismiss={dismissChip}
-        onLogged={triggerRefresh}
-        refreshTrigger={chipRefresh}
-      />
-
       {!isConfigured && (
         <div className="setup-banner">
           <Key size={18} />
@@ -239,6 +231,14 @@ export function ChatView() {
           <button onClick={clearDeleteUndo}><X size={14} /></button>
         </div>
       )}
+
+      <SuggestionStrip
+        isCollapsed={inputValue.length > 0}
+        dismissedIds={dismissedChips}
+        onDismiss={dismissChip}
+        onLogged={triggerRefresh}
+        refreshTrigger={chipRefresh}
+      />
 
       <div className="chat-input-container">
         <div className="chat-input-wrapper">

@@ -73,7 +73,7 @@ Query responses (NOT confirmations) should use markdown formatting:
 - Use **bold** for emphasis on key numbers and headings
 - Use *italic* for notes or caveats
 - Use numbered lists for steps, bullet lists for items
-- Use `backticks` for merchant names and category labels
+- Use \`backticks\` for merchant names and category labels
 - Keep it concise — no fluff, no filler, no greetings
 - Confirmations remain ONE LINE, plain text, no markdown needed
 

@@ -1,0 +1,101 @@
+/* ─── Recurring ───────────────────────────────────────────────────────── */
+
+.recurring-view {
+  padding: 16px; display: flex; flex-direction: column; gap: 20px;
+  height: 100%;
+}
+
+.recurring-title {
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;
+}
+
+/* ─── Sections ──────────────────────────────────────────────────────── */
+
+.recurring-section {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.recurring-section-title {
+  font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.section-count {
+  font-size: 0.625rem; font-weight: 600; padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-muted); color: var(--color-accent-text);
+  line-height: 1.4;
+}
+
+.recurring-empty {
+  font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.5;
+}
+
+/* ─── Rule Card ─────────────────────────────────────────────────────── */
+
+.rule-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 16px; background: var(--color-bg-card);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+}
+
+.rule-card-main {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.rule-category {
+  font-size: 0.8125rem; font-weight: 600;
+}
+
+.rule-amount {
+  font-size: 0.875rem; font-weight: 700; color: var(--color-expense);
+  font-variant-numeric: tabular-nums;
+}
+
+.rule-card-meta {
+  font-size: 0.6875rem; color: var(--color-text-muted);
+}
+
+/* ─── Rule Buttons ──────────────────────────────────────────────────── */
+
+.rule-card-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.rule-btn {
+  padding: 5px 14px; border-radius: var(--radius-full);
+  font-size: 0.6875rem; font-weight: 600; cursor: pointer;
+  border: none; transition: all 0.15s ease; font-family: var(--font-sans);
+}
+
+.rule-btn:active { transform: scale(0.97); }
+
+.rule-btn-toggle {
+  background: transparent; color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.rule-btn-toggle:hover { border-color: var(--color-accent); color: var(--color-accent-text); }
+
+.rule-btn-remove {
+  background: transparent; color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.rule-btn-remove:hover { border-color: rgba(248, 113, 113, 0.3); color: var(--color-danger); }
+
+.rule-btn-restore {
+  background: var(--color-accent-muted); color: var(--color-accent-text);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.rule-btn-restore:hover {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.rule-btn-enable {
+  background: var(--color-accent); color: var(--color-text-inverse);
+}
+
+.rule-btn-enable:hover { background: var(--color-accent-hover); }

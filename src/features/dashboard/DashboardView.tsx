@@ -374,10 +374,9 @@ export function DashboardView() {
             )
           )}
 
-          <div className="chart-card">
-            <h3>Category Breakdown</h3>
-            <div className="category-list">
-              {summary.categoryBreakdown.map((cat, i) => {
+          <h3 className="category-breakdown-title">Category Breakdown</h3>
+          <div className="category-list">
+            {summary.categoryBreakdown.map((cat, i) => {
                   const catBudget = budgetStatus?.items.find((b) => b.category === cat.category);
                   return (
                   <div
@@ -431,7 +430,6 @@ export function DashboardView() {
                   </div>
                 )})}
             </div>
-          </div>
         </>
       ) : (
         <div className="empty-state">

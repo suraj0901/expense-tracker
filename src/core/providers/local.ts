@@ -20,9 +20,11 @@ import type { ToolDefinition } from '../agent/tools';
 
 const MODEL_ID = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
 
-// ─── Tool prompt ────────────────────────────────────────────────────────
+// Timeouts to prevent browser hangs on limited hardware
+const INIT_TIMEOUT_MS = 120_000; // 2 min for model download + compile
+const INFERENCE_TIMEOUT_MS = 30_000; // 30s per inference call
 
-const TOOL_CALL_OPEN = '<tool_call>';
+// ─── Tool prompt ────────────────────────────────────────────────────────
 
 function buildToolPrompt(tools: ToolDefinition[]): string {
   if (tools.length === 0) return '';
@@ -149,6 +151,36 @@ type DownloadListener = (state: DownloadState) => void;
 
 // ─── Provider ───────────────────────────────────────────────────────────
 
+/** Truncate messages to stay within the context window, keeping the system
+ *  message intact and removing oldest non-system messages first. */
+function truncateMessages(
+  messages: ChatCompletionMessageParam[],
+  maxChars: number,
+): ChatCompletionMessageParam[] {
+  let total = 0;
+  for (const m of messages) {
+    total += (m.content as string)?.length ?? 0;
+  }
+  if (total <= maxChars) return messages;
+
+  const systemMsgs = messages.filter(m => m.role === 'system');
+  const otherMsgs = messages.filter(m => m.role !== 'system');
+  let systemLen = 0;
+  for (const m of systemMsgs) systemLen += (m.content as string)?.length ?? 0;
+
+  const budget = maxChars - systemLen;
+  const result: ChatCompletionMessageParam[] = [];
+  let used = 0;
+  for (let i = otherMsgs.length - 1; i >= 0; i--) {
+    const len = (otherMsgs[i].content as string)?.length ?? 0;
+    if (used + len > budget) break;
+    result.unshift(otherMsgs[i]);
+    used += len;
+  }
+
+  return [...systemMsgs, ...result];
+}
+
 export class LocalAIProvider implements AIProvider {
   readonly name = 'SmolLM2 360M (Local)';
   readonly id = 'webllm';
@@ -190,29 +222,33 @@ export class LocalAIProvider implements AIProvider {
     this.emit();
 
     try {
-      this.engine = await CreateMLCEngine(
-        MODEL_ID,
-        {
-          initProgressCallback: (report: InitProgressReport) => {
-            this.state = {
-              status: 'downloading',
-              progress: report.progress,
-              text: report.text,
-            };
-            this.emit();
+      this.engine = await Promise.race([
+        CreateMLCEngine(
+          MODEL_ID,
+          {
+            initProgressCallback: (report: InitProgressReport) => {
+              this.state = {
+                status: 'downloading',
+                progress: report.progress,
+                text: report.text,
+              };
+              this.emit();
+            },
           },
-        },
-        // SmolLM2-360M has a smaller default context window. Bump it to
-        // fit the system prompt + tool descriptions + 20 messages of history.
-        { context_window_size: 8192 },
-      );
+          { context_window_size: 4096 },
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Model download timed out — try again on a faster connection')), INIT_TIMEOUT_MS)
+        ),
+      ]);
       this.state = { status: 'ready', progress: 1, text: 'Model ready' };
       this.emit();
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load model';
       this.state = {
         status: 'error',
         progress: 0,
-        text: err instanceof Error ? err.message : 'Failed to load model',
+        text: msg,
       };
       this.emit();
       this.initPromise = null;
@@ -268,24 +304,45 @@ export class LocalAIProvider implements AIProvider {
       return { role: 'user', content: `Tool result for ${m.toolCallId}: ${m.content}` };
     });
 
-    const response = await this.engine.chat.completions.create({
-      messages: processedMessages,
-      max_tokens: 1024,
-      temperature: 0.1
-    });
+    // Truncate to keep under context window — system prompt + tool
+    // description + a few recent exchanges. Small models choke on long context.
+    const truncated = truncateMessages(processedMessages, 4096);
 
-    const content = response.choices[0].message.content ?? '';
-    const parsed = parseResponse(content);
+    try {
+      const response = await Promise.race([
+        this.engine.chat.completions.create({
+          messages: truncated,
+          max_tokens: 512,
+          temperature: 0.1,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Local model took too long to respond — try a shorter message')), INFERENCE_TIMEOUT_MS)
+        ),
+      ]);
 
-    return {
-      content: parsed.message,
-      hasToolCalls: parsed.hasToolCalls,
-      toolCalls: parsed.toolCalls.map((tc, i) => ({
-        id: `local-${i}`,
-        name: tc.name,
-        args: tc.args,
-      })),
-      raw: response,
-    };
+      const content = response.choices[0].message.content ?? '';
+      const parsed = parseResponse(content);
+
+      return {
+        content: parsed.message,
+        hasToolCalls: parsed.hasToolCalls,
+        toolCalls: parsed.toolCalls.map((tc, i) => ({
+          id: `local-${i}`,
+          name: tc.name,
+          args: tc.args,
+        })),
+        raw: response,
+      };
+    } catch (err) {
+      // If inference times out or OOMs, the engine may be left in a
+      // broken state. Reset it so the next attempt starts fresh.
+      if (err instanceof Error && (err.message.includes('too long') || err.message.includes('timed out'))) {
+        this.engine = null;
+        this.initPromise = null;
+        this.state = { status: 'error', progress: 0, text: err.message };
+        this.emit();
+      }
+      throw err;
+    }
   }
 }

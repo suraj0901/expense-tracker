@@ -7,9 +7,13 @@
 
 .dashboard-header {
   display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0 8px;
 }
 
-.dashboard-header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+.dashboard-header h1 {
+  font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em;
+  margin: 0;
+}
 
 .month-selector { display: flex; align-items: center; gap: 4px; }
 
@@ -94,26 +98,35 @@
 
 /* ─── Category List ───────────────────────────────────────────────────── */
 
-.category-list { display: flex; flex-direction: column; gap: 6px; }
+.category-breakdown-title {
+  font-size: 0.8125rem; font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+.category-list { display: flex; flex-direction: column; gap: 0; }
 
 .category-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  background: var(--color-bg-card); border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+  display: flex; align-items: center; gap: 10px; padding: 12px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: none; border-radius: 0;
+}
+
+.category-item:last-child {
+  border-bottom: none;
 }
 
 .category-item--clickable {
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 
 .category-item--clickable:hover {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-border);
+  opacity: 0.7;
 }
 
 .category-item--clickable:active {
-  background: var(--color-accent-muted);
+  opacity: 0.5;
 }
 
 .cat-chevron {

@@ -12,3 +12,4 @@
 - In SmartHeader, keep today's expense large and prominent but do NOT wrap it in a pill/badge — use clean text styling without colored backgrounds or borders. Confidence: 0.70
 - For TransactionCard layout: place the time above the amount (right side), tags alongside the category name, and the description/note as subtext beneath the category. Confidence: 0.65
 - Maintain horizontal padding/margins on both sides of transaction cards — do not make cards completely edge-to-edge. Confidence: 0.70
+- For list views (categories, transactions), avoid wrapping items in unnecessary card containers — prefer flat lists to maximize space for the actual content. Confidence: 0.65

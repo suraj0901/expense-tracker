@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import type { Message, AgentResponse, FeedItem, Transaction } from '../../core/domain/types';
+import type { Message, AgentResponse, FeedItem } from '../../core/domain/types';
 import { processMessage } from '../../core/agent/agent';
 import type { AIProvider } from '../../core/providers/types';
 import { messageRepo, transactionRepo, eventRepo } from '../../core/composition-root';

@@ -111,8 +111,8 @@ describe('buildSystemPrompt', () => {
 
   it('injects merchant hints when provided', () => {
     const hints = [
-      { canonicalName: 'swiggy', category: 'Food', useCount: 5, lastUsedAt: Date.now() },
-      { canonicalName: 'uber', category: 'Transport', useCount: 3, lastUsedAt: Date.now() },
+      { canonicalName: 'swiggy', category: 'Food', useCount: 5, lastUsedAt: Date.now(), confirmStrategy: 'auto' as const },
+      { canonicalName: 'uber', category: 'Transport', useCount: 3, lastUsedAt: Date.now(), confirmStrategy: 'auto' as const },
     ];
     const prompt = buildSystemPrompt(hints);
     expect(prompt).toContain('Known merchants: swiggy→Food, uber→Transport');

@@ -1,13 +1,12 @@
-import type { AppEvent, FeedItem } from '../../../core/domain/types';
+import type { AppEvent } from '../../../core/domain/types';
 
 interface EventCardProps {
   event: AppEvent;
   onDismiss: (id: string) => void;
   onAct: (id: string, action: string) => void;
-  onEdit: (item: FeedItem) => void;
 }
 
-export function EventCard({ event, onDismiss, onAct, onEdit }: EventCardProps) {
+export function EventCard({ event, onDismiss, onAct }: EventCardProps) {
   switch (event.type) {
     case 'recurring_suggestion':
       return <RecurringSuggestionCard event={event} onDismiss={onDismiss} onAct={onAct} />;
@@ -79,7 +78,6 @@ function MonthlyInsightCard({ event, onDismiss, onAct }: EventCardProps) {
 
 function MerchantMappingCard({ event, onDismiss, onAct }: EventCardProps) {
   const d = event.data as Record<string, unknown> | null;
-  const merchant = (d?.merchant as string) ?? 'this merchant';
   const category = (d?.suggestedCategory as string) ?? 'this category';
   const historicalContext = d?.historicalContext as string | null;
   return (

@@ -10,7 +10,7 @@ import type { AIProvider, ProviderMessage } from '../providers/types';
 import type { Transaction } from '../domain/types';
 import { paiseToRupees } from '../domain/money';
 import type { Paise } from '../domain/money';
-import { TOOL_DEFINITIONS } from './tools';
+
 
 export interface PatternCandidate {
   category: string;

@@ -31,8 +31,8 @@ export function ChatView() {
     inputValue, isSending, error, isLoading, feed, includedItems, deleteUndo,
     dismissedChips, chipRefresh, feedVersion, feedFilter, setFeedFilter, setInput, loadFeed, refreshFeed, sendMessage,
     clearError, sendQueuedMessage, dismissEvent, actOnEvent, deleteTransaction,
-    undoDelete, clearDeleteUndo, addIncludedItem, removeIncludedItem,
-    dismissChip, triggerChipRefresh,
+    undoDelete, clearDeleteUndo, removeIncludedItem,
+    dismissChip,
   } = useChatStore();
 
   const { provider } = useSettingsStore();
@@ -180,6 +180,8 @@ export function ChatView() {
           category: data.category as string,
           typicalAmount: data.typicalAmount as number,
           merchant: (data.merchant as string) ?? undefined,
+          notificationBody: '',
+          notificationType: 'rule-creation',
           createdAt: Date.now(),
         });
       }
@@ -195,6 +197,8 @@ export function ChatView() {
           category: data.category as string,
           typicalAmount: data.typicalAmount as number,
           merchant: (data.merchant as string) ?? undefined,
+          notificationBody: '',
+          notificationType: 'rule-creation',
           createdAt: Date.now(),
         });
       }

@@ -11,10 +11,10 @@ export function createMerchantHintRepository(): MerchantHintRepository {
       await upsertMerchantHint(merchant, category, confirmStrategy);
     },
     async getTop(limit: number = 30): Promise<MerchantHint[]> {
-      return getMerchantHints(limit);
+      return getMerchantHints(limit) as Promise<MerchantHint[]>;
     },
     async getAll(): Promise<MerchantHint[]> {
-      return getAllMerchantHints();
+      return getAllMerchantHints() as Promise<MerchantHint[]>;
     },
     async update(canonicalName: string, fields: { category?: string; confirmStrategy?: string }): Promise<boolean> {
       return updateMerchantHint(canonicalName, fields);

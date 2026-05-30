@@ -2,7 +2,7 @@
  * SQLite summary repository — implements SummaryRepository.
  */
 import type { SummaryRepository } from '../app/interfaces';
-import type { MonthlySummary, CategoryBreakdownItem, BudgetStatusResult } from '../domain/types';
+import type { MonthlySummary, CategoryBreakdownItem, BudgetStatusResult, SpendingTrend } from '../domain/types';
 import { getMonthlySummary, getCategoryBreakdown, getBudgetStatus, getSpendingTrend } from '../db/summaries';
 
 export function createSummaryRepository(): SummaryRepository {

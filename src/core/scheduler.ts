@@ -16,6 +16,7 @@ import { autoBackup } from './db/client';
 import { nanoid } from 'nanoid';
 import { checkGoalMilestones } from './app/event-generators';
 import type { PatternCandidate, PatternFinding } from './agent/proactive-agent';
+import type { Transaction } from './domain/types';
 import {
   computePatternTiming,
   upsertReminder,
@@ -28,7 +29,7 @@ import {
 } from './pattern-reminders';
 import { kvGet, kvSet } from './platform/kv-store';
 
-type PatternAnalyzer = (candidates: PatternCandidate[], txns: Array<{ id: string; amount: Paise; type: string; category: string; merchant: string | null; description: string | null; date: string; isDeleted: boolean; }>) => Promise<PatternFinding[]>;
+type PatternAnalyzer = (candidates: PatternCandidate[], txns: Transaction[]) => Promise<PatternFinding[]>;
 
 let patternAnalyzer: PatternAnalyzer | null = null;
 

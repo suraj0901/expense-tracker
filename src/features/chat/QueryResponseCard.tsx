@@ -14,10 +14,6 @@ interface QueryResponseCardProps {
 export function QueryResponseCard({ queryText, responseText, onDismiss }: QueryResponseCardProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const renderedResponse = useMemo(() => {
-    return marked.parse(responseText) as string;
-  }, [responseText]);
-
   const displayResponse = expanded
     ? responseText
     : responseText.length > 300

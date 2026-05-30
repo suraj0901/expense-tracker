@@ -133,7 +133,7 @@ export function SettingsView() {
     return [deepseekKeyInput, setDeepseekKeyInput] as const;
   };
 
-  const cloudProviders: ProviderType[] = ['anthropic', 'gemini', 'deepseek'];
+  const cloudProviders: Array<Exclude<ProviderType, 'webllm'>> = ['anthropic', 'gemini', 'deepseek'];
 
   return (
     <div className="settings-container fade-in">

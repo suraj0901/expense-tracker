@@ -68,7 +68,7 @@ export function CategoryTransactionsView({ category, month, year, onBack, budget
     }
   };
 
-  const total = transactions.reduce((sum, t) => sum + t.amount, 0 as Paise);
+  const total = transactions.reduce((sum, t) => (sum + t.amount) as Paise, 0 as Paise);
 
   const barColor = budget
     ? budget.percentUsed >= 100

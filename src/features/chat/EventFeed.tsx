@@ -99,7 +99,6 @@ export function EventFeed({
                 event={item.event}
                 onDismiss={onDismissEvent}
                 onAct={onActEvent}
-                onEdit={onEditEvent}
               />
             )}
           </div>

@@ -5,7 +5,6 @@
  * The actual processing logic lives in middleware.ts.
  */
 
-import { nanoid } from 'nanoid';
 import type { AIProvider } from '../providers/types';
 import type { AgentResponse, Message } from '../domain/types';
 import {

@@ -124,8 +124,11 @@ export function TransactionCard({ transaction, budgetStatus, onEdit, onDelete, o
         <CategoryIcon name={transaction.category} className="transaction-card-icon-img" />
 
         <div className="transaction-card-details">
-          <div className="transaction-card-row-top">
-            <span className="transaction-card-category">{transaction.category}</span>
+          <span className="transaction-card-category">{transaction.category}</span>
+          <div className="transaction-card-title-row">
+            <span className="transaction-card-title">
+              {transaction.merchant || transaction.note || transaction.description || 'Untitled'}
+            </span>
             {transaction.tags && transaction.tags.length > 0 && (
               <span className="transaction-card-tags-inline">
                 {transaction.tags.map((tag) => (
@@ -134,11 +137,6 @@ export function TransactionCard({ transaction, budgetStatus, onEdit, onDelete, o
               </span>
             )}
           </div>
-          {(transaction.merchant || transaction.note) && (
-            <div className="transaction-card-subtext">
-              {transaction.merchant || transaction.note}
-            </div>
-          )}
           {showBudget && (
             <div className="transaction-card-budget">
               <div className="transaction-card-budget-bar">
@@ -155,10 +153,10 @@ export function TransactionCard({ transaction, budgetStatus, onEdit, onDelete, o
         </div>
 
         <div className="transaction-card-right">
-          <div className="transaction-card-time">{time}</div>
           <div className="transaction-card-amount">
             {isExpense ? '-' : '+'}₹{amount.toLocaleString('en-IN')}
           </div>
+          <div className="transaction-card-time">{time}</div>
         </div>
       </div>
     </div>

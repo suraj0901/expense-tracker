@@ -13,3 +13,11 @@
 - For TransactionCard layout: place the time above the amount (right side), tags alongside the category name, and the description/note as subtext beneath the category. Confidence: 0.65
 - Maintain horizontal padding/margins on both sides of transaction cards — do not make cards completely edge-to-edge. Confidence: 0.70
 - For list views (categories, transactions), avoid wrapping items in unnecessary card containers — prefer flat lists to maximize space for the actual content. Confidence: 0.65
+- In chat view, today's expense should occupy full screen width with large font size; monthly expense should be placed at corners with smaller fonts. Confidence: 0.75
+- On expense cards in chat, remove the category label (icon alone conveys meaning). Replace it with the actual description of the expense/income. Place the amount above and the time below. Confidence: 0.70
+- Remove the "add chips" options — wrap the chips instead to utilize space more efficiently. Confidence: 0.70
+- When a transaction has no description, merchant, or note, display "untitled" as the fallback title in the card. Confidence: 0.70
+- Place tags on the same line as the expense description/title within transaction cards. Confidence: 0.70
+- Show the category label in small, muted text above the expense title in transaction cards — keep the expense title and amount as the most visually dominant elements. Confidence: 0.70
+- Suggestion strip above chat input should only show suggestions derived from the user's previous transactions, not random or generic options. Confidence: 0.85
+- While adding an expense or income entry, show a placeholder skeleton card in today's section rather than a generic thinking/loading indicator. Confidence: 0.70

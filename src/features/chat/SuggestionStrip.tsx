@@ -5,13 +5,11 @@
  * using the scoring algorithm from src/core/suggestions.ts.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, X } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { transactionRepo } from '../../core/composition-root';
 import { rupeesToPaise } from '../../core/domain/money';
 import { getPersonalizedChips } from '../../core/suggestions';
 import type { Chip } from '../../core/domain/types';
-import { CategoryPicker } from './CategoryPicker';
 import { CategoryIcon } from './categoryIcons';
 
 interface SuggestionStripProps {
@@ -24,7 +22,6 @@ interface SuggestionStripProps {
 
 export function SuggestionStrip({ isCollapsed, dismissedIds, onDismiss, onLogged, refreshTrigger }: SuggestionStripProps) {
   const [chips, setChips] = useState<Chip[]>([]);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [logging, setLogging] = useState<string | null>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -72,18 +69,6 @@ export function SuggestionStrip({ isCollapsed, dismissedIds, onDismiss, onLogged
     setChips(prev => prev.filter(c => c.id !== chip.id));
   }, [onDismiss]);
 
-  const handleQuickAdd = useCallback(async (category: string) => {
-    setQuickAddOpen(false);
-    const id = nanoid();
-    const today = new Date().toISOString().slice(0, 10);
-    await transactionRepo.insert({
-      id, amount: rupeesToPaise(0), type: 'expense',
-      category, merchant: null, note: 'quick add', description: null, tags: undefined,
-      date: today, createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false,
-    });
-    onLogged();
-  }, [onLogged]);
-
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -100,46 +85,30 @@ export function SuggestionStrip({ isCollapsed, dismissedIds, onDismiss, onLogged
   if (isCollapsed || chips.length === 0) return null;
 
   return (
-    <>
-      <div className="suggestion-strip">
-        <div className="suggestion-strip-scroll">
-          {chips.map((chip) => (
-            <button
-              key={chip.id}
-              className={`suggestion-chip-action ${logging === chip.id ? 'logging' : ''}`}
-              onClick={() => handleLog(chip)}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={(e) => handleTouchEnd(e, chip)}
-              disabled={logging === chip.id}
-            >
-              {logging === chip.id ? (
-                <span className="chip-spinner" />
-              ) : (
-                <>
-                  {chip.category && <CategoryIcon name={chip.category} className="chip-icon" />}
-                  <span className="chip-label">
-                    ₹{chip.amount} {chip.label || chip.category}
-                  </span>
-                </>
-              )}
-            </button>
-          ))}
-          <button className="suggestion-chip-dismiss-all" onClick={() => chips.forEach(c => onDismiss(c.id))}>
-            <X size={14} />
+    <div className="suggestion-strip">
+      <div className="suggestion-strip-scroll">
+        {chips.map((chip) => (
+          <button
+            key={chip.id}
+            className={`suggestion-chip-action ${logging === chip.id ? 'logging' : ''}`}
+            onClick={() => handleLog(chip)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={(e) => handleTouchEnd(e, chip)}
+            disabled={logging === chip.id}
+          >
+            {logging === chip.id ? (
+              <span className="chip-spinner" />
+            ) : (
+              <>
+                {chip.category && <CategoryIcon name={chip.category} className="chip-icon" />}
+                <span className="chip-label">
+                  ₹{chip.amount} {chip.label || chip.category}
+                </span>
+              </>
+            )}
           </button>
-          <button className="suggestion-chip-add" onClick={() => setQuickAddOpen(true)}>
-            <Plus className="chip-icon" />
-            <span className="chip-label">Add</span>
-          </button>
-        </div>
+        ))}
       </div>
-
-      <CategoryPicker
-        open={quickAddOpen}
-        selected={null}
-        onSelect={handleQuickAdd}
-        onClose={() => setQuickAddOpen(false)}
-      />
-    </>
+    </div>
   );
 }

@@ -15,7 +15,7 @@ import { messageRepo, transactionRepo, eventRepo } from '../../core/composition-
 import { logger } from '../../core/logger';
 import { useMessageQueueStore } from './messageQueue.store';
 
-export type FeedFilter = 'all' | 'transactions' | 'queries';
+export type FeedFilter = 'all' | 'transactions' | 'queries' | 'notifications';
 
 interface ChatState {
   messages: Message[];

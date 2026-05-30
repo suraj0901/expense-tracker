@@ -42,6 +42,7 @@ export interface Suggestion {
   category?: string;
   typicalAmount?: number; // rupees
   merchant?: string;
+  description?: string | null;
   notificationBody: string;
   notificationType: 'timed-log' | 'rule-creation';
   createdAt: number;
@@ -52,6 +53,7 @@ export interface TimedReminder {
   category: string;
   typicalAmount: number;
   merchant: string | null;
+  description: string | null;
   notificationBody: string;
   createdAt: number;
 }
@@ -135,12 +137,13 @@ class Scheduler {
       // Pattern detection
       const recent = await transactionRepo.getRecent(50);
       const candidates: PatternCandidate[] = [];
-      const groups = new Map<string, { amounts: number[]; merchant: string | null }>();
+      const groups = new Map<string, { amounts: number[]; merchant: string | null; description: string | null }>();
       for (const t of recent) {
         if (t.type !== 'expense') continue;
         const key = t.category;
-        const entry = groups.get(key) || { amounts: [], merchant: t.merchant };
+        const entry = groups.get(key) || { amounts: [], merchant: t.merchant, description: null };
         entry.amounts.push(paiseToRupees(t.amount as Paise));
+        if (t.description) entry.description = t.description;
         groups.set(key, entry);
       }
 
@@ -151,6 +154,7 @@ class Scheduler {
           category: t.category,
           amount: paiseToRupees(t.amount as Paise),
           merchant: t.merchant,
+          description: t.description,
         }))
       );
 
@@ -160,7 +164,7 @@ class Scheduler {
         const median = sorted[Math.floor(sorted.length / 2)];
         const similar = sorted.filter((a) => median > 0 && Math.abs(a - median) / median < 0.2);
         if (similar.length >= 3) {
-          candidates.push({ category, amounts: similar, merchant: data.merchant });
+          candidates.push({ category, amounts: similar, merchant: data.merchant, description: data.description });
         }
       }
 
@@ -219,23 +223,23 @@ class Scheduler {
         // Store as timed reminder — notification fires on-schedule, not now
         const body = aiEnabled
           ? f.notificationBody
-          : staticNotificationBody('timed-log', f.category, f.typicalAmount, f.merchant, dayName(timing.daysOfWeek[0]), timing.hour);
+          : staticNotificationBody('timed-log', f.category, f.typicalAmount, f.merchant, f.description, dayName(timing.daysOfWeek[0]), timing.hour);
 
-        upsertReminder(f.category, f.typicalAmount, f.merchant, timing, body);
+        upsertReminder(f.category, f.typicalAmount, f.merchant, f.description, timing, body);
 
         eventRepo.insert({
           id: nanoid(),
           type: 'recurring_suggestion',
           title: `Timed pattern: ${f.category}`,
-          body: `${aiEnabled ? f.reasoning : 'Detected'}: ~₹${f.typicalAmount} ${f.category}${mid} on ${timing.daysOfWeek.map((d) => dayName(d)).join(', ')}. I'll remind you.`,
-          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, confidence: f.confidence, notificationType: 'timed-log' },
+          body: body,
+          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, description: f.description, confidence: f.confidence, notificationType: 'timed-log' },
           createdAt: Date.now(),
         }).catch(() => {});
       } else {
         // No clear timing — emit rule-creation suggestion immediately
         const body = aiEnabled
           ? f.notificationBody
-          : staticNotificationBody('rule-creation', f.category, f.typicalAmount, f.merchant);
+          : staticNotificationBody('rule-creation', f.category, f.typicalAmount, f.merchant, f.description);
 
         const s: Suggestion = {
           id: `rule-${f.category}-${f.typicalAmount}`,
@@ -243,6 +247,7 @@ class Scheduler {
           category: f.category,
           typicalAmount: f.typicalAmount,
           merchant: f.merchant ?? undefined,
+          description: f.description,
           notificationBody: body,
           notificationType: 'rule-creation',
           createdAt: Date.now(),
@@ -253,15 +258,15 @@ class Scheduler {
           id: nanoid(),
           type: 'recurring_suggestion',
           title: `Recurring pattern: ${f.category}`,
-          body: `${aiEnabled ? f.reasoning : `You've spent ~₹${f.typicalAmount} on ${f.category}${mid} multiple times.`} Create a recurring rule?`,
-          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, confidence: f.confidence, notificationType: 'rule-creation' },
+          body: `${aiEnabled ? f.reasoning : `You've spent ~₹${f.typicalAmount} on ${f.category}${mid} a bunch of times.`} Create a recurring rule?`,
+          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, description: f.description, confidence: f.confidence, notificationType: 'rule-creation' },
           createdAt: Date.now(),
         }).catch(() => {});
       }
     }
   }
 
-  private processStatsFallback(groups: Map<string, { amounts: number[]; merchant: string | null }>): void {
+  private processStatsFallback(groups: Map<string, { amounts: number[]; merchant: string | null; description: string | null }>): void {
     for (const [category, data] of groups) {
       if (data.amounts.length < 3) continue;
       const sorted = [...data.amounts].sort((a, b) => a - b);
@@ -274,25 +279,26 @@ class Scheduler {
       const mid = data.merchant ? ` at ${data.merchant}` : '';
 
       if (timing.isTimed) {
-        const body = staticNotificationBody('timed-log', category, avg, data.merchant, dayName(timing.daysOfWeek[0]), timing.hour);
-        upsertReminder(category, avg, data.merchant, timing, body);
+        const body = staticNotificationBody('timed-log', category, avg, data.merchant, data.description, dayName(timing.daysOfWeek[0]), timing.hour);
+        upsertReminder(category, avg, data.merchant, data.description, timing, body);
 
         eventRepo.insert({
           id: nanoid(),
           type: 'recurring_suggestion',
           title: `Timed pattern: ${category}`,
-          body: `Detected ~₹${avg} ${category}${mid} on ${timing.daysOfWeek.map((d) => dayName(d)).join(', ')}. I'll remind you.`,
-          data: { category, typicalAmount: avg, merchant: data.merchant, count: similar.length, notificationType: 'timed-log' },
+          body,
+          data: { category, typicalAmount: avg, merchant: data.merchant, description: data.description, count: similar.length, notificationType: 'timed-log' },
           createdAt: Date.now(),
         }).catch(() => {});
       } else {
-        const body = staticNotificationBody('rule-creation', category, avg, data.merchant);
+        const body = staticNotificationBody('rule-creation', category, avg, data.merchant, data.description);
         const s: Suggestion = {
           id: `rule-${category}-${avg}`,
           text: `~₹${avg} ${category}${mid}`,
           category,
           typicalAmount: avg,
           merchant: data.merchant ?? undefined,
+          description: data.description,
           notificationBody: body,
           notificationType: 'rule-creation',
           createdAt: Date.now(),
@@ -304,7 +310,7 @@ class Scheduler {
           type: 'recurring_suggestion',
           title: `Recurring pattern: ${category}`,
           body: `You've spent ~₹${avg} on ${category}${mid} ${similar.length} times recently. Create a recurring rule?`,
-          data: { category, typicalAmount: avg, merchant: data.merchant, count: similar.length, notificationType: 'rule-creation' },
+          data: { category, typicalAmount: avg, merchant: data.merchant, description: data.description, count: similar.length, notificationType: 'rule-creation' },
           createdAt: Date.now(),
         }).catch(() => {});
       }
@@ -319,6 +325,7 @@ class Scheduler {
         category: r.category,
         typicalAmount: r.typicalAmount,
         merchant: r.merchant,
+        description: r.description,
         notificationBody: r.notificationBody,
         createdAt: Date.now(),
       });

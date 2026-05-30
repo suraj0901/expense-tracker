@@ -165,6 +165,7 @@ export default function App() {
             category: s.category ?? 'Other',
             merchant: s.merchant ?? null,
             note: null,
+            description: s.description ?? null,
             date: today,
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -181,6 +182,7 @@ export default function App() {
             category: suggestion.category ?? 'Other',
             merchant: suggestion.merchant ?? null,
             note: null,
+            description: suggestion.description ?? null,
             date: today,
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -201,6 +203,7 @@ export default function App() {
       category?: string;
       typicalAmount?: number;
       merchant?: string;
+      description?: string | null;
       notificationBody: string;
     }) {
       const registration = await navigator.serviceWorker.ready;
@@ -237,6 +240,7 @@ export default function App() {
       category: string;
       typicalAmount: number;
       merchant: string | null;
+      description: string | null;
       notificationBody: string;
     }) {
       const registration = await navigator.serviceWorker.ready;

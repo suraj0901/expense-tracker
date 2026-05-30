@@ -20,6 +20,7 @@ export interface AutoLogRule {
   category: string;
   typicalAmount: number; // rupees
   merchant: string | null;
+  description: string | null;
   dayOfWeek: number | null; // 0=Sun…6=Sat
   dayOfMonth: number | null; // 1-31, for monthly patterns
   hour: number | null; // 0-23
@@ -91,6 +92,7 @@ export function upsertRuleFromSuggestion(
     category: s.category ?? 'Other',
     typicalAmount: s.typicalAmount ?? 0,
     merchant: s.merchant ?? null,
+    description: s.description ?? null,
     dayOfWeek: timing?.dayOfWeek ?? now.getDay(),
     dayOfMonth: timing?.dayOfMonth ?? null,
     hour: timing?.hour ?? now.getHours(),

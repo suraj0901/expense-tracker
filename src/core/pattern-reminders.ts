@@ -9,10 +9,6 @@
  */
 
 import { nanoid } from 'nanoid';
-import { transactionRepo } from './composition-root';
-import { paiseToRupees } from './domain/money';
-import type { Paise } from './domain/money';
-import type { PatternCandidate } from './agent/proactive-agent';
 import { kvGet, kvSet } from './platform/kv-store';
 
 export interface PatternReminder {
@@ -20,6 +16,7 @@ export interface PatternReminder {
   category: string;
   typicalAmount: number; // rupees
   merchant: string | null;
+  description: string | null;
   daysOfWeek: number[]; // 0=Sun…6=Sat
   hour: number; // 0-23
   notificationBody: string; // pre-generated AI text (or static fallback)
@@ -78,6 +75,7 @@ export function upsertReminder(
   category: string,
   typicalAmount: number,
   merchant: string | null,
+  description: string | null,
   timing: TimingResult,
   notificationBody: string
 ): void {
@@ -91,6 +89,7 @@ export function upsertReminder(
     existing.daysOfWeek = timing.daysOfWeek;
     existing.hour = timing.hour;
     existing.notificationBody = notificationBody;
+    existing.description = description;
     existing.lastMatchedAt = now;
     existing.dismissed = false;
   } else {
@@ -99,6 +98,7 @@ export function upsertReminder(
       category,
       typicalAmount,
       merchant,
+      description,
       daysOfWeek: timing.daysOfWeek,
       hour: timing.hour,
       notificationBody,
@@ -189,18 +189,20 @@ export function staticNotificationBody(
   category: string,
   typicalAmount: number,
   merchant: string | null,
+  description: string | null,
   dayName?: string,
   hour?: number
 ): string {
+  const label = description || category;
   const mid = merchant ? ` at ${merchant}` : '';
   if (type === 'timed-log') {
     const timePart = dayName && hour != null
       ? `${dayName}s around ${formatHour(hour)}`
       : '';
-    const prefix = timePart ? `${timePart}?` : 'Again?';
-    return `${prefix} Your usual ~₹${typicalAmount} ${category}${mid} — want me to log it?`;
+    const prefix = timePart ? `It's ${timePart.toLowerCase()}. ` : '';
+    return `${prefix}${label}${mid} again? Wanna log ₹${typicalAmount}?`;
   }
-  return `You've spent ~₹${typicalAmount} on ${category}${mid} multiple times. Create a recurring rule?`;
+  return `${label}${mid} — you've spent ~₹${typicalAmount} on this a bunch of times. Create a recurring rule?`;
 }
 
 function formatHour(h: number): string {
@@ -217,10 +219,10 @@ export function dayName(day: number): string {
 
 // In-memory cache of recent transactions for timing computation.
 // Populated by scheduler before pattern detection.
-let recentTxnCache: Array<{ date: string; category: string; amount: number; merchant: string | null }> = [];
+let recentTxnCache: Array<{ date: string; category: string; amount: number; merchant: string | null; description: string | null }> = [];
 
 export function setRecentTransactionCache(
-  txns: Array<{ date: string; category: string; amount: number; merchant: string | null }>
+  txns: Array<{ date: string; category: string; amount: number; merchant: string | null; description: string | null }>
 ): void {
   recentTxnCache = txns;
 }
@@ -229,7 +231,7 @@ function getRecentTransactionsFromCache(
   category: string,
   merchant: string | null,
   typicalAmount: number
-): Array<{ date: string; category: string; amount: number; merchant: string | null }> {
+): Array<{ date: string; category: string; amount: number; merchant: string | null; description: string | null }> {
   return recentTxnCache.filter(
     (t) => t.category === category
       && (merchant === null || t.merchant === merchant)

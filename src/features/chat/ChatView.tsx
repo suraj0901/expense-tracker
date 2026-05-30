@@ -18,6 +18,7 @@ import type { DraftItem } from '../drafts/types';
 import { VoiceInput } from './VoiceInput';
 import { SuggestionStrip } from './SuggestionStrip';
 import { EventFeed } from './EventFeed';
+import { SkeletonTransactionCard } from './SkeletonTransactionCard';
 import { EditTransactionModal } from './EditTransactionModal';
 import { CategoryPicker } from './CategoryPicker';
 import { transactionRepo, merchantHintRepo, summaryRepo } from '../../core/composition-root';
@@ -226,13 +227,15 @@ export function ChatView() {
   const filteredFeed = useMemo(() => {
     if (feedFilter === 'all') return feed;
     if (feedFilter === 'transactions') return feed.filter((f) => f.kind === 'transaction');
-    return feed.filter((f) => f.kind === 'query-response' || f.kind === 'event');
+    if (feedFilter === 'notifications') return feed.filter((f) => f.kind === 'event');
+    return feed.filter((f) => f.kind === 'query-response');
   }, [feed, feedFilter]);
 
   const TAB_OPTIONS: { key: FeedFilter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'transactions', label: 'Transactions' },
     { key: 'queries', label: 'Queries' },
+    { key: 'notifications', label: 'Notifications' },
   ];
 
   return (
@@ -275,12 +278,7 @@ export function ChatView() {
       )}
 
       <div className="chat-content" ref={contentRef}>
-        {isSending && (
-          <div className="thinking-placeholder">
-            <div className="thinking-shimmer-bar" />
-            <span className="thinking-label">Thinking…</span>
-          </div>
-        )}
+        {isSending && <SkeletonTransactionCard />}
 
         {isLoading || (filteredFeed.length === 0 && isLoading) ? null : filteredFeed.length > 0 ? (
           <EventFeed

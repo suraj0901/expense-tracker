@@ -47,9 +47,7 @@ export function SmartHeader({ refreshKey }: { refreshKey: number }) {
   if (!data) {
     return (
       <div className="smart-header">
-        <div className="smart-header-left">
-          <span className="smart-header-label skeleton-header">--</span>
-        </div>
+        <span className="smart-header-skeleton">--</span>
       </div>
     );
   }
@@ -59,13 +57,13 @@ export function SmartHeader({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="smart-header">
-      <div className="smart-header-left">
-        <span className="smart-header-today">{todayStr}</span>
-        <span className="smart-header-today-label">today</span>
-      </div>
-      <div className="smart-header-right">
+      <div className="smart-header-month-corner">
         <span className="smart-header-month-amount">{monthStr}</span>
         <span className="smart-header-month-label">this {data.monthLabel}</span>
+      </div>
+      <div className="smart-header-hero">
+        <span className="smart-header-today">{todayStr}</span>
+        <span className="smart-header-today-label">spent today</span>
       </div>
     </div>
   );

@@ -2,19 +2,13 @@
  * Personalized suggestion chips algorithm.
  *
  * Scores past spending patterns by recency, frequency, and time relevance.
- * Fallback to static defaults when transaction history is too thin.
+ * Only shows suggestions from actual transaction history — no hardcoded defaults.
  */
 import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import type { Chip } from './domain/types';
 import { transactionRepo } from './composition-root';
 
-const DEFAULT_CHIPS: Chip[] = [
-  { id: 'default-chai', label: '☕ Chai', category: 'Food', amount: 15, merchant: '', confidence: 0 },
-  { id: 'default-auto', label: '🛺 Auto', category: 'Transport', amount: 25, merchant: '', confidence: 0 },
-  { id: 'default-groceries', label: '🛒 Groceries', category: 'Groceries', amount: 500, merchant: '', confidence: 0 },
-  { id: 'default-lunch', label: '🍕 Lunch', category: 'Food', amount: 120, merchant: '', confidence: 0 },
-];
 
 interface Pattern {
   category: string;
@@ -28,8 +22,8 @@ export async function getPersonalizedChips(dismissedIds: Set<string>): Promise<C
   try {
     const recent = await transactionRepo.getRecent(100);
     const expenses = recent.filter(t => t.type === 'expense');
-    if (expenses.length < 5) {
-      return DEFAULT_CHIPS.filter(c => !dismissedIds.has(c.id));
+    if (expenses.length < 2) {
+      return [];
     }
 
     const now = new Date();
@@ -96,19 +90,8 @@ export async function getPersonalizedChips(dismissedIds: Set<string>): Promise<C
       .filter(c => !dismissedIds.has(c.id))
       .slice(0, 6);
 
-    // If too few personalized chips, fill with defaults
-    if (result.length < 3) {
-      const defaults = DEFAULT_CHIPS.filter(c => !dismissedIds.has(c.id));
-      for (const d of defaults) {
-        if (!result.some(c => c.category === d.category && c.amount === d.amount)) {
-          result.push(d);
-        }
-        if (result.length >= 4) break;
-      }
-    }
-
     return result;
   } catch {
-    return DEFAULT_CHIPS.filter(c => !dismissedIds.has(c.id));
+    return [];
   }
 }

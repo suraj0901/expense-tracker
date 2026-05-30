@@ -17,6 +17,9 @@ See [agent/taste.md](agent/taste.md)
 # ui
 See [ui/taste.md](ui/taste.md)
 
+# code-style
+- Use `format(new Date(), 'yyyy-MM-dd')` from date-fns instead of `new Date().toISOString().slice(0, 10)` for consistent, timezone-safe date handling across the codebase. Confidence: 0.75
+
 # settings
 - Co-locate API key inputs with their corresponding AI provider selection — do not separate them into distinct sections. Confidence: 0.70
 - Keep Export (CSV/PDF) separate from Backup & Restore as distinct sections; make export buttons describe what exactly they export (e.g., "Export transactions as CSV"). Confidence: 0.70

@@ -63,6 +63,7 @@ type Listener = (s: Suggestion) => void;
 type TimedReminderListener = (r: TimedReminder) => void;
 
 const DISMISSED_STORAGE_KEY = 'expense-tracker:dismissed-suggestions';
+const NOTIFIED_HINTS_KEY = 'expense-tracker:notified-hints';
 
 class Scheduler {
   private listeners: Listener[] = [];
@@ -70,9 +71,15 @@ class Scheduler {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private backupIntervalId: ReturnType<typeof setInterval> | null = null;
   private dismissedIds = new Set<string>();
+  private lastTickTime = 0;
+  private notifiedHints: { date: string; ids: Set<string> } = { date: '', ids: new Set() };
+  private recentEventKeys = new Set<string>();
 
   private readonly INTERVAL_MS = 30 * 60 * 1000;
   private readonly BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  private readonly TICK_COOLDOWN_MS = 10 * 60 * 1000;
+  private readonly MAX_EMITS_PER_TICK = 3;
+  private readonly MAX_PENDING_REMINDERS = 2;
 
   onSuggestion(fn: Listener): () => void {
     this.listeners.push(fn);
@@ -100,8 +107,48 @@ class Scheduler {
     kvSet(DISMISSED_STORAGE_KEY, JSON.stringify([...this.dismissedIds]));
   }
 
+  private loadNotifiedHints(): void {
+    try {
+      const raw = kvGet(NOTIFIED_HINTS_KEY);
+      if (raw) {
+        const { date, ids } = JSON.parse(raw);
+        const today = new Date().toDateString();
+        this.notifiedHints = { date, ids: date === today ? new Set<string>(ids) : new Set() };
+      }
+    } catch {}
+  }
+
+  private persistNotifiedHints(): void {
+    kvSet(NOTIFIED_HINTS_KEY, JSON.stringify({
+      date: this.notifiedHints.date,
+      ids: [...this.notifiedHints.ids],
+    }));
+  }
+
+  private isHintNotifiedToday(id: string): boolean {
+    const today = new Date().toDateString();
+    if (this.notifiedHints.date !== today) {
+      this.notifiedHints = { date: today, ids: new Set() };
+      return false;
+    }
+    return this.notifiedHints.ids.has(id);
+  }
+
+  private markHintNotified(id: string): void {
+    const today = new Date().toDateString();
+    if (this.notifiedHints.date !== today) {
+      this.notifiedHints = { date: today, ids: new Set() };
+    }
+    this.notifiedHints.ids.add(id);
+    this.persistNotifiedHints();
+  }
+
+  private emitCount = 0;
+
   private emit(s: Suggestion): void {
+    if (this.emitCount >= this.MAX_EMITS_PER_TICK) return;
     if (this.dismissedIds.has(s.id)) return;
+    this.emitCount++;
     for (const fn of this.listeners) fn(s);
   }
 
@@ -110,6 +157,9 @@ class Scheduler {
   }
 
   async tick(): Promise<void> {
+    this.lastTickTime = Date.now();
+    this.emitCount = 0;
+    this.recentEventKeys = new Set();
     try {
       await processAutoLogRules();
 
@@ -181,29 +231,37 @@ class Scheduler {
         this.processStatsFallback(groups);
       }
 
-      // Fire pending timed reminders
+      // Fire pending timed reminders (capped)
       this.firePendingReminders();
 
       // Check reminder expiry
       const expired = checkReminderExpiry();
       if (expired > 0) {
-        eventRepo.insert({
-          id: nanoid(),
-          type: 'recurring_suggestion',
-          title: 'Patterns expired',
-          body: `${expired} inactive recurring pattern(s) removed.`,
-          data: { expiredCount: expired },
-          createdAt: Date.now(),
-        }).catch(() => {});
+        const expiryKey = 'reminder-expiry';
+        if (!this.recentEventKeys.has(expiryKey)) {
+          this.recentEventKeys.add(expiryKey);
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'recurring_suggestion',
+            title: 'Patterns expired',
+            body: `${expired} inactive recurring pattern(s) removed.`,
+            data: { expiredCount: expired },
+            createdAt: Date.now(),
+          }).catch(() => {});
+        }
       }
 
-      // Merchant hints
+      // Merchant hints (with daily cooldown)
       const hints = await merchantHintRepo.getTop(20);
       for (const h of hints) {
         if ((h.useCount ?? 0) < 3) continue;
         if (h.confirmStrategy === 'dismissed') continue;
+        const hintId = `hint-${h.canonicalName}`;
+        if (this.dismissedIds.has(hintId)) continue;
+        if (this.isHintNotifiedToday(hintId)) continue;
+        this.markHintNotified(hintId);
         this.emit({
-          id: `hint-${h.canonicalName}`,
+          id: hintId,
           text: `You've logged "${h.canonicalName}" ${h.useCount} times as ${h.category}.`,
           notificationBody: `I'll auto-categorize future "${h.canonicalName}" entries as ${h.category}.`,
           notificationType: 'rule-creation',
@@ -228,14 +286,18 @@ class Scheduler {
 
         upsertReminder(f.category, f.typicalAmount, f.merchant, f.description, timing, body);
 
-        eventRepo.insert({
-          id: nanoid(),
-          type: 'recurring_suggestion',
-          title: `Timed pattern: ${f.category}`,
-          body: body,
-          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, description: f.description, confidence: f.confidence, notificationType: 'timed-log' },
-          createdAt: Date.now(),
-        }).catch(() => {});
+        const eventKey = `timed-${f.category}-${f.merchant ?? ''}`;
+        if (!this.recentEventKeys.has(eventKey)) {
+          this.recentEventKeys.add(eventKey);
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'recurring_suggestion',
+            title: `Timed pattern: ${f.category}`,
+            body: body,
+            data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, description: f.description, confidence: f.confidence, notificationType: 'timed-log' },
+            createdAt: Date.now(),
+          }).catch(() => {});
+        }
       } else {
         // No clear timing — emit rule-creation suggestion immediately
         const body = aiEnabled
@@ -255,14 +317,18 @@ class Scheduler {
         };
         this.emit(s);
 
-        eventRepo.insert({
-          id: nanoid(),
-          type: 'recurring_suggestion',
-          title: `Recurring pattern: ${f.category}`,
-          body: `${aiEnabled ? f.reasoning : `You've spent ~₹${f.typicalAmount} on ${f.category}${mid} a bunch of times.`} Create a recurring rule?`,
-          data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, description: f.description, confidence: f.confidence, notificationType: 'rule-creation' },
-          createdAt: Date.now(),
-        }).catch(() => {});
+        const eventKey = `rule-${f.category}-${f.merchant ?? ''}`;
+        if (!this.recentEventKeys.has(eventKey)) {
+          this.recentEventKeys.add(eventKey);
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'recurring_suggestion',
+            title: `Recurring pattern: ${f.category}`,
+            body: `${aiEnabled ? f.reasoning : `You've spent ~₹${f.typicalAmount} on ${f.category}${mid} a bunch of times.`} Create a recurring rule?`,
+            data: { category: f.category, typicalAmount: f.typicalAmount, merchant: f.merchant, description: f.description, confidence: f.confidence, notificationType: 'rule-creation' },
+            createdAt: Date.now(),
+          }).catch(() => {});
+        }
       }
     }
   }
@@ -282,6 +348,18 @@ class Scheduler {
       if (timing.isTimed) {
         const body = staticNotificationBody('timed-log', category, avg, data.merchant, data.description, dayName(timing.daysOfWeek[0]), timing.hour);
         upsertReminder(category, avg, data.merchant, data.description, timing, body);
+        const eventKey = `timed-${category}-${data.merchant ?? ''}`;
+        if (!this.recentEventKeys.has(eventKey)) {
+          this.recentEventKeys.add(eventKey);
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'recurring_suggestion',
+            title: `Timed pattern: ${category}`,
+            body: body,
+            data: { category, typicalAmount: avg, merchant: data.merchant, description: data.description, notificationType: 'timed-log' },
+            createdAt: Date.now(),
+          }).catch(() => {});
+        }
       } else {
         const body = staticNotificationBody('rule-creation', category, avg, data.merchant, data.description);
         const s: Suggestion = {
@@ -297,20 +375,24 @@ class Scheduler {
         };
         this.emit(s);
 
-        eventRepo.insert({
-          id: nanoid(),
-          type: 'recurring_suggestion',
-          title: `Recurring pattern: ${category}`,
-          body: `You've spent ~₹${avg} on ${category}${mid} ${similar.length} times recently. Create a recurring rule?`,
-          data: { category, typicalAmount: avg, merchant: data.merchant, description: data.description, count: similar.length, notificationType: 'rule-creation' },
-          createdAt: Date.now(),
-        }).catch(() => {});
+        const eventKey = `rule-${category}-${data.merchant ?? ''}`;
+        if (!this.recentEventKeys.has(eventKey)) {
+          this.recentEventKeys.add(eventKey);
+          eventRepo.insert({
+            id: nanoid(),
+            type: 'recurring_suggestion',
+            title: `Recurring pattern: ${category}`,
+            body: `You've spent ~₹${avg} on ${category}${mid} ${similar.length} times recently. Create a recurring rule?`,
+            data: { category, typicalAmount: avg, merchant: data.merchant, description: data.description, count: similar.length, notificationType: 'rule-creation' },
+            createdAt: Date.now(),
+          }).catch(() => {});
+        }
       }
     }
   }
 
   private firePendingReminders(): void {
-    const pending = getPendingReminders();
+    const pending = getPendingReminders().slice(0, this.MAX_PENDING_REMINDERS);
     for (const r of pending) {
       this.emitTimedReminder({
         id: r.id,
@@ -328,12 +410,15 @@ class Scheduler {
   start(): void {
     if (this.intervalId) return;
     this.loadDismissed();
+    this.loadNotifiedHints();
     setTimeout(() => this.tick(), 2 * 60 * 1000);
     this.intervalId = setInterval(() => this.tick(), this.INTERVAL_MS);
     setTimeout(() => autoBackup(), 5 * 60 * 1000);
     this.backupIntervalId = setInterval(() => autoBackup(), this.BACKUP_INTERVAL_MS);
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this.tick();
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - this.lastTickTime < this.TICK_COOLDOWN_MS) return;
+      this.tick();
     });
   }
 

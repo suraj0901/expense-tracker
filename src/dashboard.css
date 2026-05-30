@@ -1,7 +1,7 @@
 /* ─── Dashboard ───────────────────────────────────────────────────────── */
 
 .dashboard-container {
-  padding: 16px; display: flex; flex-direction: column; gap: 16px;
+  padding: 16px; display: flex; flex-direction: column; gap: 18px;
   height: 100%; overflow-y: auto; overflow-x: hidden;
 }
 
@@ -11,7 +11,7 @@
 }
 
 .dashboard-header h1 {
-  font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em;
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -23,6 +23,7 @@
   background: var(--color-bg-card); border: 1px solid var(--color-border);
   color: var(--color-text-secondary); cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .month-selector button:hover {
@@ -45,15 +46,16 @@
 .summary-card {
   padding: 14px 12px; background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .summary-card .label {
-  font-size: 0.625rem; color: var(--color-text-muted);
-  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  font-size: 0.5625rem; color: var(--color-text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
 }
 
 .summary-card .amount {
-  font-size: 1rem; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em;
+  font-size: 1rem; font-weight: 700; margin-top: 6px; letter-spacing: -0.02em;
 }
 
 .summary-card.income .amount { color: var(--color-income); }
@@ -74,14 +76,15 @@
   padding: 5px 14px; border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   background: var(--color-bg-card); color: var(--color-text-secondary);
-  font-size: 0.6875rem; font-weight: 500; cursor: pointer;
+  font-size: 0.625rem; font-weight: 500; cursor: pointer;
   font-family: var(--font-sans); transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .compare-toggle:hover { border-color: var(--color-accent); }
 .compare-toggle.active {
-  background: var(--color-accent-muted); border-color: rgba(16, 185, 129, 0.3);
-  color: var(--color-accent-text);
+  background: var(--color-accent); border-color: var(--color-accent);
+  color: var(--color-text-inverse);
 }
 
 /* ─── Charts ──────────────────────────────────────────────────────────── */
@@ -89,6 +92,7 @@
 .chart-card {
   padding: 16px; background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-card h3 {
@@ -101,32 +105,26 @@
 .category-breakdown-title {
   font-size: 0.8125rem; font-weight: 600;
   color: var(--color-text-secondary);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-.category-list { display: flex; flex-direction: column; gap: 0; }
+.category-list { display: flex; flex-direction: column; gap: 6px; }
 
 .category-item {
-  display: flex; align-items: center; gap: 10px; padding: 12px 0;
-  border-bottom: 1px solid var(--color-border-subtle);
-  background: none; border-radius: 0;
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: var(--color-bg-card); border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease;
 }
 
-.category-item:last-child {
-  border-bottom: none;
-}
+.category-item:hover { box-shadow: var(--shadow-md); }
 
 .category-item--clickable {
   cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.category-item--clickable:hover {
-  opacity: 0.7;
 }
 
 .category-item--clickable:active {
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
 .cat-chevron {
@@ -144,11 +142,11 @@
 .category-item .cat-count { font-size: 0.6875rem; color: var(--color-text-muted); }
 .category-item .cat-amount { font-size: 0.875rem; font-weight: 600; }
 .category-item .cat-percentage {
-  font-size: 0.625rem; color: var(--color-text-muted); text-align: right;
+  font-size: 0.5625rem; color: var(--color-text-muted); text-align: right;
 }
 
 .progress-bar {
-  height: 3px; background: var(--color-border-subtle);
+  height: 3px; background: var(--color-bg-tertiary);
   border-radius: var(--radius-full); margin-top: 6px; overflow: hidden;
 }
 
@@ -159,7 +157,7 @@
 /* ─── Budget Bar (shared) ──────────────────────────────────────────────── */
 
 .budget-bar {
-  height: 3px; background: var(--color-border-subtle);
+  height: 3px; background: var(--color-bg-tertiary);
   border-radius: var(--radius-full); overflow: hidden;
 }
 
@@ -179,7 +177,7 @@
 }
 
 .cat-budget-text {
-  font-size: 0.625rem; color: var(--color-text-muted);
+  font-size: 0.5625rem; color: var(--color-text-muted);
   display: block; margin-top: 2px;
 }
 
@@ -187,8 +185,8 @@
 
 .insight-card {
   padding: 16px;
-  background: linear-gradient(135deg, var(--color-accent-muted) 0%, var(--color-bg-card) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.12); border-radius: var(--radius-lg);
+  background: var(--color-accent-muted);
+  border: 1px solid rgba(124, 127, 222, 0.12); border-radius: var(--radius-lg);
 }
 
 .insight-card h3 {
@@ -220,11 +218,12 @@
   display: flex; flex-direction: column; gap: 6px;
   padding: 14px 16px; background: var(--color-bg-card);
   border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .goal-card.complete {
-  border-color: rgba(52, 211, 153, 0.3);
-  background: rgba(52, 211, 153, 0.05);
+  border-color: rgba(107, 191, 138, 0.3);
+  background: rgba(107, 191, 138, 0.05);
 }
 
 .goal-header {
@@ -234,7 +233,7 @@
 .goal-name { font-size: 0.8125rem; font-weight: 600; }
 
 .goal-badge {
-  font-size: 0.625rem; font-weight: 600; padding: 2px 8px;
+  font-size: 0.5625rem; font-weight: 600; padding: 2px 8px;
   border-radius: var(--radius-full); background: var(--color-income);
   color: var(--color-text-inverse);
 }
@@ -259,7 +258,7 @@
 .goal-percent { font-weight: 600; color: var(--color-accent); }
 
 .goal-deadline {
-  font-size: 0.6875rem; color: var(--color-text-muted);
+  font-size: 0.625rem; color: var(--color-text-muted);
 }
 
 /* ─── Empty State ─────────────────────────────────────────────────────── */
@@ -270,7 +269,7 @@
   flex: 1;
 }
 
-.empty-state .icon { width: 48px; height: 48px; opacity: 0.35; color: var(--color-text-muted); }
+.empty-state .icon { width: 48px; height: 48px; opacity: 0.3; color: var(--color-text-muted); }
 .empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--color-text-secondary); }
 .empty-state p { font-size: 0.75rem; color: var(--color-text-muted); max-width: 240px; }
 
@@ -291,6 +290,7 @@
   background: var(--color-bg-card); border: 1px solid var(--color-border);
   color: var(--color-text-secondary); cursor: pointer;
   transition: all 0.15s ease; flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .drilldown-back:hover {
@@ -306,8 +306,8 @@
 }
 
 .drilldown-subtitle {
-  display: block; font-size: 0.6875rem; color: var(--color-text-muted);
-  margin-top: 1px;
+  display: block; font-size: 0.625rem; color: var(--color-text-muted);
+  margin-top: 2px;
 }
 
 .drilldown-header-total {
@@ -319,14 +319,15 @@
 /* ─── Drilldown Budget Section ───────────────────────────────────────── */
 
 .drilldown-budget-section {
-  padding: 10px 14px; background: var(--color-bg-card);
+  padding: 12px 14px; background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
   display: flex; flex-direction: column; gap: 4px;
+  box-shadow: var(--shadow-sm);
 }
 
 .drilldown-budget-meta {
   display: flex; justify-content: space-between;
-  font-size: 0.6875rem; color: var(--color-text-muted);
+  font-size: 0.625rem; color: var(--color-text-muted);
 }
 
 .drilldown-loading {
@@ -344,13 +345,14 @@
 }
 
 .drilldown-list {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 
 .drilldown-item {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 14px; background: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .drilldown-item-left {
@@ -359,7 +361,7 @@
 }
 
 .drilldown-item-date {
-  font-size: 0.625rem; color: var(--color-text-muted);
+  font-size: 0.5625rem; color: var(--color-text-muted);
 }
 
 .drilldown-item-primary {
@@ -368,7 +370,7 @@
 }
 
 .drilldown-item-secondary {
-  font-size: 0.6875rem; color: var(--color-text-muted);
+  font-size: 0.625rem; color: var(--color-text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -385,7 +387,7 @@
 
 .drilldown-item-action {
   display: flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: var(--radius-sm);
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
   background: none; border: 1px solid var(--color-border-subtle);
   color: var(--color-text-muted); cursor: pointer;
   transition: all 0.15s ease;
@@ -398,7 +400,7 @@
 }
 
 .drilldown-item-action--danger:hover {
-  border-color: rgba(248, 113, 113, 0.3);
+  border-color: rgba(229, 107, 111, 0.3);
   color: var(--color-danger);
-  background: rgba(248, 113, 113, 0.06);
+  background: rgba(229, 107, 111, 0.06);
 }

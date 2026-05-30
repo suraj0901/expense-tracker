@@ -1,11 +1,11 @@
 /* ─── Typing Indicator ────────────────────────────────────────────────── */
 
 .typing-indicator {
-  display: flex; align-items: center; gap: 4px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 5px; padding: 12px 16px;
 }
 
 .typing-indicator .dot {
-  width: 6px; height: 6px; border-radius: var(--radius-full);
+  width: 5px; height: 5px; border-radius: var(--radius-full);
   background: var(--color-text-muted);
   animation: typingBounce 1.4s infinite ease-in-out;
 }

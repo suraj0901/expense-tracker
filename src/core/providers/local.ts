@@ -152,7 +152,9 @@ type DownloadListener = (state: DownloadState) => void;
 // ─── Provider ───────────────────────────────────────────────────────────
 
 /** Truncate messages to stay within the context window, keeping the system
- *  message intact and removing oldest non-system messages first. */
+ *  message intact and removing oldest non-system messages first.
+ *  Ensures the last message is not from `assistant` — WebLLM requires
+ *  the final message to be `user` or `tool`. */
 function truncateMessages(
   messages: ChatCompletionMessageParam[],
   maxChars: number,
@@ -176,6 +178,11 @@ function truncateMessages(
     if (used + len > budget) break;
     result.unshift(otherMsgs[i]);
     used += len;
+  }
+
+  // WebLLM requires last message to be user/tool — drop trailing assistant
+  while (result.length > 0 && result[result.length - 1].role === 'assistant') {
+    result.pop();
   }
 
   return [...systemMsgs, ...result];

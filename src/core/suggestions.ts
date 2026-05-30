@@ -8,6 +8,7 @@ import { paiseToRupees } from './domain/money';
 import type { Paise } from './domain/money';
 import type { Chip } from './domain/types';
 import { transactionRepo } from './composition-root';
+import { getPendingReminders } from './pattern-reminders';
 
 
 interface Pattern {
@@ -20,10 +21,29 @@ interface Pattern {
 
 export async function getPersonalizedChips(dismissedIds: Set<string>): Promise<Chip[]> {
   try {
+    const chips: Chip[] = [];
+
+    // Include pending timed reminders as chips — mirrors push notification content
+    for (const r of getPendingReminders()) {
+      const chipId = `reminder-${r.id}`;
+      if (dismissedIds.has(chipId)) continue;
+      const merchant = r.merchant ?? '';
+      chips.push({
+        id: chipId,
+        label: merchant
+          ? `${r.category} ₹${r.typicalAmount} at ${merchant}`
+          : `${r.category} ₹${r.typicalAmount}`,
+        category: r.category,
+        amount: r.typicalAmount,
+        merchant: merchant || undefined,
+        confidence: 1,
+      });
+    }
+
     const recent = await transactionRepo.getRecent(100);
     const expenses = recent.filter(t => t.type === 'expense');
     if (expenses.length < 2) {
-      return [];
+      return chips;
     }
 
     const now = new Date();
@@ -42,8 +62,6 @@ export async function getPersonalizedChips(dismissedIds: Set<string>): Promise<C
       p.days.push(d.getDay());
       groups.set(key, p);
     }
-
-    const chips: Chip[] = [];
 
     for (const [, pattern] of groups) {
       if (pattern.amounts.length < 2) continue;

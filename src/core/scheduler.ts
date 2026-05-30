@@ -281,15 +281,6 @@ class Scheduler {
       if (timing.isTimed) {
         const body = staticNotificationBody('timed-log', category, avg, data.merchant, data.description, dayName(timing.daysOfWeek[0]), timing.hour);
         upsertReminder(category, avg, data.merchant, data.description, timing, body);
-
-        eventRepo.insert({
-          id: nanoid(),
-          type: 'recurring_suggestion',
-          title: `Timed pattern: ${category}`,
-          body,
-          data: { category, typicalAmount: avg, merchant: data.merchant, description: data.description, count: similar.length, notificationType: 'timed-log' },
-          createdAt: Date.now(),
-        }).catch(() => {});
       } else {
         const body = staticNotificationBody('rule-creation', category, avg, data.merchant, data.description);
         const s: Suggestion = {
